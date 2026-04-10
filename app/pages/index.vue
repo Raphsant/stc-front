@@ -1,9 +1,19 @@
 <script setup lang="ts">
-const { data: discordInfo, pending: discordPending } = await useFetch('https://stc.snuuy.com/webhook/discord-info', {
+const nuxtApp = useNuxtApp()
+const { data: discordInfo, pending: discordPending } = await useFetch('https://stc.snuuy.com/webhooks/discord-info', {
   method: 'GET',
-  lazy: true,
+  key: 'discord-info',
+  getCachedData(key){
+    return nuxtApp.payload.data[key] || nuxtApp.static.data[key]
+  }
 })
-const { data: botStatus, pending: statusPending } = await useFetch('https://stc.snuuy.com/health', { lazy: true })
+const { data: botStatus, pending: statusPending } = await useFetch('https://stc.snuuy.com/health', {
+  method: 'GET',
+  key: 'bot-status',
+  getCachedData(key){
+    return nuxtApp.payload.data[key] || nuxtApp.static.data[key]
+  }
+})
 const { data: meetings, pending: meetingsPending } = await useFetch('/api/meetings', { lazy: true })
 const { data: latestMeetings, pending: activityPending } = await useFetch('/api/meetings', { query: { limit: 5 }, lazy: true })
 

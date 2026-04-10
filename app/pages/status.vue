@@ -1,5 +1,5 @@
 <script setup lang="ts">
-
+const nuxtApp = useNuxtApp()
 const { data: status, pending, error, refresh } = await useFetch('https://stc.snuuy.com/health', {
   method: 'GET',
   key: 'bot-status',

@@ -28,6 +28,6 @@ COPY --from=build /app/.output/ ./
 ENV PORT=29050
 ENV HOST=0.0.0.0
 
-EXPOSE 80
+EXPOSE 29050
 
 CMD ["node", "/app/server/index.mjs"]

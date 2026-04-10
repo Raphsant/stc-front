@@ -1,5 +1,12 @@
 <script setup lang="ts">
-const { data: status, pending, error, refresh } = await useFetch('/api/bot/status')
+
+const { data: status, pending, error, refresh } = await useFetch('https://stc.snuuy.com/health', {
+  method: 'GET',
+  key: 'bot-status',
+  getCachedData(key){
+    return nuxtApp.payload.data[key] || nuxtApp.static.data[key]
+  }
+})
 
 function formatUptime(seconds: number) {
   if (!seconds) return '0s'

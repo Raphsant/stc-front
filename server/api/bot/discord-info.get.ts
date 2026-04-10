@@ -1,6 +1,6 @@
 export default defineEventHandler(async (event) => {
   try {
-    const data = await $fetch('http://localhost:3001/webhooks/discord-info')
+    const data = await $fetch('http://stcbot:3001/webhooks/discord-info')
     return data
   } catch (error: any) {
     throw createError({

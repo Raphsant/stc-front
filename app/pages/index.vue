@@ -1,25 +1,38 @@
 <script setup lang="ts">
-const { data: discordInfo } = await useFetch('/api/bot/discord-info')
-const { data: botStatus } = await useFetch('/api/bot/status')
-const { data: meetings } = await useFetch('/api/meetings')
-const { data: latestMeetings } = await useFetch('/api/meetings', { query: { limit: 5 } })
+const { data: discordInfo, pending: discordPending } = await useFetch('https://stc.snuuy.com/webhook/discord-info', {
+  method: 'GET',
+  lazy: true,
+})
+const { data: botStatus, pending: statusPending } = await useFetch('https://stc.snuuy.com/health', { lazy: true })
+const { data: meetings, pending: meetingsPending } = await useFetch('/api/meetings', { lazy: true })
+const { data: latestMeetings, pending: activityPending } = await useFetch('/api/meetings', { query: { limit: 5 }, lazy: true })
 
 const quickStats = computed(() => [
   { 
+    label: 'Nombre del Servidor', 
+    value: discordInfo.value?.guildName, 
+    pending: discordPending.value,
+    icon: 'i-heroicons-server-stack-20-solid', 
+    color: 'text-primary-500' 
+  },
+  { 
     label: 'Miembros Totales', 
-    value: discordInfo.value?.memberCount?.toLocaleString() || '0', 
+    value: discordInfo.value?.memberCount?.toLocaleString(), 
+    pending: discordPending.value,
     icon: 'i-heroicons-users-20-solid', 
     color: 'text-blue-500' 
   },
   { 
     label: 'Meetings Registrados', 
-    value: meetings.value?.length || '0', 
+    value: meetings.value?.length, 
+    pending: meetingsPending.value,
     icon: 'i-heroicons-video-camera-20-solid', 
     color: 'text-green-500' 
   },
   { 
     label: 'Estado del Bot', 
     value: botStatus.value?.status === 'UP' ? 'ACTIVO' : 'OFFLINE', 
+    pending: statusPending.value,
     icon: 'i-heroicons-signal-20-solid', 
     color: botStatus.value?.status === 'UP' ? 'text-green-500' : 'text-red-500' 
   },
@@ -44,9 +57,7 @@ function timeAgo(date: string | Date) {
   const now = new Date().getTime()
   const seconds = Math.floor((now - past) / 1000)
 
-  // Si la fecha es inválida o está en el "futuro" por error de sync
   if (isNaN(seconds) || seconds < 0) return 'recién ahora'
-
   if (seconds < 60) return 'hace unos segundos'
   
   const intervals = {
@@ -79,9 +90,10 @@ function timeAgo(date: string | Date) {
           <div :class="`p-3 rounded-lg ${stat.color} bg-opacity-10`">
             <UIcon :name="stat.icon" :class="`w-6 h-6 ${stat.color}`" />
           </div>
-          <div>
+          <div class="flex-1 overflow-hidden">
             <p class="text-sm text-neutral-400 font-medium">{{ stat.label }}</p>
-            <p class="text-xl font-bold tracking-tight truncate max-w-[150px]">{{ stat.value }}</p>
+            <USkeleton v-if="stat.pending" class="h-6 w-24 mt-1" />
+            <p v-else class="text-xl font-bold tracking-tight truncate">{{ stat.value || '0' }}</p>
           </div>
         </div>
       </UCard>
@@ -99,21 +111,24 @@ function timeAgo(date: string | Date) {
               <UIcon name="i-heroicons-clock-20-solid" class="text-primary-500" />
               <span class="text-sm">Tiempo Activo</span>
             </div>
-            <span class="text-sm font-mono">{{ formatUptime(botStatus?.uptime) }}</span>
+            <USkeleton v-if="statusPending" class="h-4 w-16" />
+            <span v-else class="text-sm font-mono">{{ formatUptime(botStatus?.uptime) }}</span>
           </div>
           <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-800/50">
             <div class="flex items-center gap-3">
               <UIcon name="i-heroicons-bolt-20-solid" class="text-primary-500" />
               <span class="text-sm">Conexión Discord</span>
             </div>
-            <span class="text-sm font-mono">{{ botStatus?.discord === 'Connected' ? 'Conectado' : 'Desconectado' }}</span>
+            <USkeleton v-if="statusPending" class="h-4 w-24" />
+            <span v-else class="text-sm font-mono">{{ botStatus?.discord === 'Connected' ? 'Conectado' : 'Desconectado' }}</span>
           </div>
           <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-800/50">
             <div class="flex items-center gap-3">
               <UIcon name="i-heroicons-signal-20-solid" class="text-primary-500" />
               <span class="text-sm">Servicio</span>
             </div>
-            <UBadge :color="botStatus?.status === 'UP' ? 'primary' : 'red'" size="sm" variant="soft">
+            <USkeleton v-if="statusPending" class="h-6 w-20" />
+            <UBadge v-else :color="botStatus?.status === 'UP' ? 'primary' : 'red'" size="sm" variant="soft">
               {{ botStatus?.status === 'UP' ? 'EN LÍNEA' : 'FUERA DE SERVICIO' }}
             </UBadge>
           </div>
@@ -131,11 +146,20 @@ function timeAgo(date: string | Date) {
       </template>
 
       <div class="divide-y divide-neutral-800">
-        <div v-if="!latestMeetings?.length" class="py-8 text-center text-neutral-500 text-sm">
+        <div v-if="activityPending" class="space-y-4 py-4">
+          <div v-for="i in 3" :key="i" class="flex items-center gap-4">
+            <USkeleton class="h-10 w-10 rounded-lg" />
+            <div class="flex-1 space-y-2">
+              <USkeleton class="h-4 w-full" />
+              <USkeleton class="h-3 w-24" />
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!latestMeetings?.length" class="py-8 text-center text-neutral-500 text-sm">
           No hay actividad reciente.
         </div>
         
-        <!-- Mostramos los últimos registros individuales basados en los participantes del último meeting -->
         <template v-else>
           <div v-for="meeting in latestMeetings.slice(0, 5)" :key="meeting._id" class="py-4 flex items-center justify-between first:pt-0 last:pb-0">
             <div class="flex items-center gap-4">
@@ -154,7 +178,7 @@ function timeAgo(date: string | Date) {
                   <span class="text-primary-500" v-if="meeting.participants?.[0]">{{ meeting.participants[0].username }}</span>
                   <span class="text-primary-500" v-else>Alguien</span>
                   <span class="text-neutral-400"> se registró para el meeting </span>
-                  <span class="text-neutral-200 font-semibold">{{ meeting.name }}</span>
+                  <span class="text-neutral-200 font-semibold">{{ meeting.meetingId || meeting.name }}</span>
                 </p>
                 <p class="text-xs text-neutral-500 flex items-center gap-1">
                   <UIcon name="i-heroicons-clock" class="w-3 h-3" />

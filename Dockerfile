@@ -25,7 +25,7 @@ WORKDIR /app
 COPY --from=build /app/.output/ ./
 
 # Change the port and host
-ENV PORT=2905
+ENV PORT=29050
 ENV HOST=0.0.0.0
 
 EXPOSE 80

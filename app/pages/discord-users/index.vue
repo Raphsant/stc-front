@@ -1,23 +1,27 @@
 <script setup lang="ts">
-const {data: users, pending, error} = await useFetch('/api/discord-users')
-
 const q = ref('')
 const selectedRole = ref('')
+const page = ref(1)
+const limit = ref(10)
 
-const filteredRows = computed(() => {
-  return (users.value || []).filter((user: any) => {
-    // 1. Check if it matches the role (or pass if no role is selected)
-    const matchesRole = !selectedRole.value || user.roles?.some((role: string) =>
-        role.toLowerCase().includes(selectedRole.value.toLowerCase())
-    )
-
-    // 2. Check if it matches the search query (or pass if query is empty)
-    const matchesQuery = !q.value || user.username?.toLowerCase().includes(q.value.toLowerCase())
-
-    // 3. Keep the user only if they pass BOTH active filters
-    return matchesRole && matchesQuery
-  })
+const {data, pending, error} = await useFetch('/api/discord-users', {
+  query: {
+    q,
+    role: selectedRole,
+    page,
+    limit
+  },
+  watch: [q, selectedRole, page, limit]
 })
+
+const users = computed(() => data.value?.users || [])
+const total = computed(() => data.value?.total || 0)
+
+// Reset page when search or role changes
+watch([q, selectedRole], () => {
+  page.value = 1
+})
+
 const columns = [
   {
     accessorKey: 'username',
@@ -86,7 +90,7 @@ const roleFilter = ['Alpha', 'Delta']
 
     <UCard :ui="{ body: { padding: 'p-0',} }">
       <UTable
-          :data="filteredRows"
+          :data="users"
           :columns="columns"
           :loading="pending"
           class="w-full"
@@ -185,6 +189,16 @@ const roleFilter = ['Alpha', 'Delta']
           </div>
         </template>
       </UTable>
+
+      <div v-if="total > limit" class="flex justify-center border-t border-gray-200 dark:border-gray-800 py-4">
+        <UPagination
+          v-model="page"
+          :total="total"
+          :items-per-page="limit"
+        />
+      </div>
+
     </UCard>
   </div>
 </template>
+

@@ -1,23 +1,33 @@
 <script setup lang="ts">
+// Fetch all users once
+const {data: users, pending, error} = await useFetch('/api/discord-users')
+
 const q = ref('')
 const selectedRole = ref('')
 const page = ref(1)
 const limit = ref(10)
 
-const {data, pending, error} = await useFetch('/api/discord-users', {
-  query: {
-    q,
-    role: selectedRole,
-    page,
-    limit
-  },
-  watch: [q, selectedRole, page, limit]
+// 1. Filter the full list based on search and role
+const filteredRows = computed(() => {
+  const allUsers = users.value || []
+  
+  return allUsers.filter((user: any) => {
+    const matchesRole = !selectedRole.value || user.roles?.some((role: string) =>
+        role.toLowerCase().includes(selectedRole.value.toLowerCase())
+    )
+    const matchesQuery = !q.value || user.username?.toLowerCase().includes(q.value.toLowerCase())
+    return matchesRole && matchesQuery
+  })
 })
 
-const users = computed(() => data.value?.users || [])
-const total = computed(() => data.value?.total || 0)
+// 2. Slice the filtered list for the current page
+const paginatedRows = computed(() => {
+  const start = (page.value - 1) * limit.value
+  const end = start + limit.value
+  return filteredRows.value.slice(start, end)
+})
 
-// Reset page when search or role changes
+// 3. Reset to page 1 when filters change
 watch([q, selectedRole], () => {
   page.value = 1
 })
@@ -41,7 +51,6 @@ const columns = [
   }
 ]
 
-
 const colorMap: Record<string, any> = {
   'Alpha.': 'warning',
   'Alpha': 'warning',
@@ -50,7 +59,6 @@ const colorMap: Record<string, any> = {
 }
 
 const roleFilter = ['Alpha', 'Delta']
-
 </script>
 
 <template>
@@ -59,6 +67,10 @@ const roleFilter = ['Alpha', 'Delta']
       <div>
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Usuarios de Discord</h1>
         <p class="text-gray-500 mt-1">Lista de miembros del Discord.</p>
+      </div>
+      <!-- Debug indicator to verify page state -->
+      <div class="text-xs text-gray-400">
+        Página {{ page }} de {{ Math.ceil(filteredRows.length / limit) }} (Total: {{ filteredRows.length }})
       </div>
     </div>
     <div class="mb-2 flex justify-items-start gap-2 items-end">
@@ -90,7 +102,7 @@ const roleFilter = ['Alpha', 'Delta']
 
     <UCard :ui="{ body: { padding: 'p-0',} }">
       <UTable
-          :data="users"
+          :data="paginatedRows"
           :columns="columns"
           :loading="pending"
           class="w-full"
@@ -190,15 +202,14 @@ const roleFilter = ['Alpha', 'Delta']
         </template>
       </UTable>
 
-      <div v-if="total > limit" class="flex justify-center border-t border-gray-200 dark:border-gray-800 py-4">
+      <!-- Pagination Footer -->
+      <div v-if="filteredRows.length > limit" class="flex justify-center border-t border-gray-200 dark:border-gray-800 py-4">
         <UPagination
-          v-model="page"
-          :total="total"
+          v-model:page="page"
+          :total="filteredRows.length"
           :items-per-page="limit"
         />
       </div>
-
     </UCard>
   </div>
 </template>
-

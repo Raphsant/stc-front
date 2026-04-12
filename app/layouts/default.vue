@@ -26,11 +26,19 @@
 
       <div class="mt-auto p-6 border-t border-neutral-800">
         <div class="flex items-center gap-3">
-          <UAvatar src="https://avatars.githubusercontent.com/u/1000000?v=4" size="sm" />
-          <div class="flex flex-col overflow-hidden">
-            <span class="text-sm font-medium truncate">Sunny</span>
+          <UAvatar :alt="session.user?.username" size="sm" />
+          <div class="flex flex-col overflow-hidden flex-1">
+            <span class="text-sm font-medium truncate">{{ session.user?.username }}</span>
             <span class="text-xs text-neutral-400 truncate text-primary-500/80">Admin</span>
           </div>
+          <UButton
+            icon="i-heroicons-arrow-right-on-rectangle-20-solid"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            title="Sign out"
+            @click="logout"
+          />
         </div>
       </div>
     </aside>
@@ -91,6 +99,13 @@
 <script setup lang="ts">
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
+const { session, clear } = useUserSession()
+
+async function logout() {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  await clear()
+  await navigateTo('/login')
+}
 
 const navItems = [
   { label: 'Dashboard', icon: 'i-heroicons-squares-2x2-20-solid', to: '/' },

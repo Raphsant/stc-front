@@ -60,19 +60,39 @@
     <!-- Mobile Menu Slide-over -->
     <USlideover v-model:open="isMobileMenuOpen" title="STC Control">
       <template #content>
-        <div class="p-4 space-y-4">
-          <UButton
-            v-for="item in navItems"
-            :key="item.label"
-            :icon="item.icon"
-            :label="item.label"
-            :to="item.to"
-            variant="ghost"
-            block
-            class="justify-start"
-            color="neutral"
-            @click="isMobileMenuOpen = false"
-          />
+        <div class="flex flex-col h-full p-4">
+          <div class="space-y-2 flex-1">
+            <UButton
+              v-for="item in navItems"
+              :key="item.label"
+              :icon="item.icon"
+              :label="item.label"
+              :to="item.to"
+              variant="ghost"
+              block
+              class="justify-start"
+              color="neutral"
+              @click="isMobileMenuOpen = false"
+            />
+          </div>
+
+          <div class="border-t border-neutral-800 pt-4 mt-4">
+            <div class="flex items-center gap-3">
+              <UAvatar :alt="session.user?.username" size="sm" />
+              <div class="flex flex-col overflow-hidden flex-1">
+                <span class="text-sm font-medium truncate">{{ session.user?.username }}</span>
+                <span class="text-xs text-neutral-400 text-primary-500/80">Admin</span>
+              </div>
+              <UButton
+                icon="i-heroicons-arrow-right-on-rectangle-20-solid"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                title="Sign out"
+                @click="logout"
+              />
+            </div>
+          </div>
         </div>
       </template>
     </USlideover>
@@ -99,12 +119,11 @@
 <script setup lang="ts">
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
-const { session, clear } = useUserSession()
+const { session } = useUserSession()
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
-  await clear()
-  await navigateTo('/login')
+  window.location.href = '/login'
 }
 
 const navItems = [

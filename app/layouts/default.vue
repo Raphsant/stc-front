@@ -96,6 +96,7 @@ const navItems = [
   { label: 'Dashboard', icon: 'i-heroicons-squares-2x2-20-solid', to: '/' },
   { label: 'Usuarios', icon: 'i-heroicons-user-group-solid', to: '/discord-users' },
   { label: 'Meetings', icon: 'i-heroicons-list-bullet-20-solid', to: '/meetings' },
+  { label: 'Logs', icon: 'i-heroicons-document-text-solid', to: '/logs' },
   { label: 'Bot Status', icon: 'i-heroicons-signal-20-solid', to: '/status' },
 ]
 

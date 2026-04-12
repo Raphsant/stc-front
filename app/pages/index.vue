@@ -94,34 +94,6 @@ function formatDateOnly(date: string | Date) {
   })
 }
 
-function timeAgo(date: string | Date) {
-  if (!date) return 'n/a'
-  const past = new Date(date).getTime()
-  const now = new Date().getTime()
-  const seconds = Math.floor((now - past) / 1000)
-
-  if (isNaN(seconds) || seconds < 0) return 'recién ahora'
-  if (seconds < 60) return 'hace unos segundos'
-
-  const intervals = {
-    año: 31536000,
-    mes: 2592000,
-    día: 86400,
-    hora: 3600,
-    minuto: 60
-  }
-
-  for (const [unit, secondsInUnit] of Object.entries(intervals)) {
-    const counter = Math.floor(seconds / secondsInUnit)
-    if (counter >= 1) {
-      if (counter === 1) return `hace 1 ${unit}`
-      const plural = unit === 'mes' ? 'meses' : `${unit}s`
-      return `hace ${counter} ${plural}`
-    }
-  }
-
-  return 'recién ahora'
-}
 </script>
 
 <template>

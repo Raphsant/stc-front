@@ -75,7 +75,7 @@
       <header class="hidden md:flex h-16 items-center justify-between px-8 bg-neutral-900/50 backdrop-blur-sm border-b border-neutral-800">
         <h1 class="text-lg font-semibold">{{ currentRouteName }}</h1>
         <div class="flex items-center gap-4">
-          <UBadge color="primary" variant="subtle" class="font-mono">v1.2.0-stable</UBadge>
+          <UBadge color="success" variant="subtle" class="font-mono">v0.1.1-beta</UBadge>
           <UButton icon="i-heroicons-bell-20-solid" color="neutral" variant="ghost" />
         </div>
       </header>

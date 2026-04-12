@@ -15,7 +15,8 @@ export default defineEventHandler(async (event) => {
                    username: 1,
                    roles: 1,
                    previousUsernames: 1,
-                   meetingCount: { $size: '$meetings' }
+                   meetingCount: { $size: '$meetings' },
+                   lastMeeting: { $max: '$meetings.occurredAt' }
                }
            },
            { $sort: { meetingCount: -1, username: 1 } }

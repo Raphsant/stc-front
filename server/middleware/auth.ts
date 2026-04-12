@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   if (!path.startsWith('/api/')) return
 
   // Allow auth endpoints and bot endpoints through
-  if (path.startsWith('/api/auth/') || path.startsWith('/api/bot/')) return
+  if (path.startsWith('/api/auth/') || path.startsWith('/api/bot/' || path.startsWith('/api/logs/'))) return
 
   const session = await getUserSession(event)
   if (!session?.user) {

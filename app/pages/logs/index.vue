@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { data: logs, pending, error } = await useFetch('/api/logs', {
+const { data: logs, pending, error } = await useApiFetch('/api/logs', {
   query: { limit: 50 }
 })
 

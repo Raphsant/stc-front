@@ -17,15 +17,17 @@ export default defineEventHandler(async (event) => {
     try {
         session.startTransaction()
 
-        // Find or create the ZoomLog
-        let log = await ZoomLog.findOne({ meetingId }).session(session)
+        // Find or create the ZoomLog — same meetingId + same startTime is one entry
+        const occurredAt = new Date(Number(startTime) * 1000)
+        //@ts-ignore
+        let log = await ZoomLog.findOne({ meetingId, occurredAt }).session(session)
 
         if (!log) {
             //@ts-ignore
             [log] = await ZoomLog.create([{
                 meetingId,
                 name,
-                occurredAt: new Date(Number(startTime) * 1000),
+                occurredAt,
                 participants: [],
             }], { session })
         }

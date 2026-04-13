@@ -1,12 +1,24 @@
 <script setup lang="ts">
-// Fetch all users once
-const {data: users, pending, error} = await useFetch('/api/discord-users')
+const dateFrom = ref('')
+const dateTo = ref('')
+
+const { data: users, pending, error } = await useFetch('/api/discord-users', {
+  query: computed(() => ({
+    ...(dateFrom.value ? { from: dateFrom.value } : {}),
+    ...(dateTo.value ? { to: dateTo.value } : {}),
+  }))
+})
 
 const q = ref('')
 const selectedRoles = ref<string[]>([])
 const excludeKnownRoles = ref(false)
 const zeroMeetings = ref(false)
 const meetingSort = ref<'asc' | 'desc' | null>(null)
+
+function clearDateFilter() {
+  dateFrom.value = ''
+  dateTo.value = ''
+}
 
 function cycleMeetingSort() {
   if (meetingSort.value === null) meetingSort.value = 'asc'
@@ -71,7 +83,7 @@ const paginatedRows = computed(() => {
 })
 
 // 4. Reset to page 1 when filters change
-watch([q, selectedRoles, excludeKnownRoles, zeroMeetings], () => {
+watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, dateFrom, dateTo], () => {
   page.value = 1
 })
 
@@ -134,57 +146,81 @@ const roleFilter = ['Alpha', 'Delta']
         </template>
       </UInput>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <span class="text-sm text-gray-500">Rol:</span>
-        <UButton
-          v-for="r in roleFilter"
-          :key="r"
-          size="sm"
-          :color="colorMap[r]"
-          :variant="selectedRoles.includes(r) ? 'solid' : 'outline'"
-          @click="toggleRole(r)"
-        >
-          {{ r }}
-        </UButton>
-        <UButton
-          size="sm"
-          color="neutral"
-          :variant="excludeKnownRoles ? 'solid' : 'outline'"
-          @click="toggleExclude"
-        >
-          Ninguno
-        </UButton>
-        <UButton
-          v-if="selectedRoles.length || excludeKnownRoles"
-          size="sm"
-          color="neutral"
-          variant="ghost"
-          icon="i-heroicons-x-mark"
-          @click="selectedRoles = []; excludeKnownRoles = false"
-        />
+      <div class="flex flex-wrap items-center justify-between gap-y-3">
+        <!-- Left: role + meeting filters -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm text-gray-500">Rol:</span>
+          <UButton
+            v-for="r in roleFilter"
+            :key="r"
+            size="sm"
+            :color="colorMap[r]"
+            :variant="selectedRoles.includes(r) ? 'solid' : 'outline'"
+            @click="toggleRole(r)"
+          >
+            {{ r }}
+          </UButton>
+          <UButton
+            size="sm"
+            color="neutral"
+            :variant="excludeKnownRoles ? 'solid' : 'outline'"
+            @click="toggleExclude"
+          >
+            Ninguno
+          </UButton>
+          <UButton
+            v-if="selectedRoles.length || excludeKnownRoles"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-x-mark"
+            @click="selectedRoles = []; excludeKnownRoles = false"
+          />
 
-        <div class="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
+          <div class="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
 
-        <UButton
-          size="sm"
-          color="error"
-          :variant="zeroMeetings ? 'solid' : 'outline'"
-          icon="i-heroicons-calendar-x-mark"
-          @click="zeroMeetings = !zeroMeetings"
-        >
-          Sin reuniones
-        </UButton>
+          <UButton
+            size="sm"
+            color="error"
+            :variant="zeroMeetings ? 'solid' : 'outline'"
+            icon="i-heroicons-calendar-x-mark"
+            @click="zeroMeetings = !zeroMeetings"
+          >
+            Sin reuniones
+          </UButton>
 
-        <UButton
-          size="sm"
-          color="neutral"
-          :variant="meetingSort ? 'solid' : 'outline'"
-          :trailing-icon="meetingSortIcon"
-          class="md:hidden"
-          @click="cycleMeetingSort"
-        >
-          Reuniones
-        </UButton>
+          <UButton
+            size="sm"
+            color="neutral"
+            :variant="meetingSort ? 'solid' : 'outline'"
+            :trailing-icon="meetingSortIcon"
+            class="md:hidden"
+            @click="cycleMeetingSort"
+          >
+            Reuniones
+          </UButton>
+        </div>
+
+        <!-- Right: date range filter -->
+        <div class="flex items-end gap-2 w-full sm:w-auto">
+          <div class="flex flex-col gap-1 flex-1 sm:flex-none">
+            <span class="text-xs text-gray-400">Desde</span>
+            <UInput v-model="dateFrom" type="date" size="sm" class="w-full sm:w-36" />
+          </div>
+          <div class="flex flex-col gap-1 flex-1 sm:flex-none">
+            <span class="text-xs text-gray-400">Hasta</span>
+            <UInput v-model="dateTo" type="date" size="sm" class="w-full sm:w-36" />
+          </div>
+          <UButton
+            v-if="dateFrom || dateTo"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-heroicons-x-mark"
+            class="mb-0.5"
+            @click="clearDateFilter"
+          />
+        </div>
       </div>
     </div>
 

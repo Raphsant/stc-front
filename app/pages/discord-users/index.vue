@@ -2,7 +2,7 @@
 const dateFrom = ref('')
 const dateTo = ref('')
 
-const { data: users, pending, error } = await useFetch('/api/discord-users', {
+const { data: users, pending, error } = useFetch('/api/discord-users', {
   query: computed(() => ({
     ...(dateFrom.value ? { from: dateFrom.value } : {}),
     ...(dateTo.value ? { to: dateTo.value } : {}),
@@ -234,8 +234,26 @@ const roleFilter = ['Alpha', 'Delta']
       />
     </div>
 
+    <!-- Skeleton -->
+    <UCard v-if="pending" :ui="{ body: { padding: 'p-4' } }">
+      <div class="space-y-3">
+        <div v-for="i in 8" :key="i" class="flex items-center gap-4">
+          <USkeleton class="h-8 w-8 rounded-lg shrink-0" />
+          <USkeleton class="h-4 w-36" />
+          <div class="flex gap-1.5 ml-2">
+            <USkeleton class="h-5 w-14 rounded-full" />
+            <USkeleton class="h-5 w-14 rounded-full" />
+          </div>
+          <USkeleton class="h-5 w-10 rounded-full ml-auto" />
+          <USkeleton class="h-5 w-20 rounded-full" />
+          <USkeleton class="h-7 w-7 rounded-md" />
+          <USkeleton class="h-7 w-7 rounded-md" />
+        </div>
+      </div>
+    </UCard>
+
     <!-- Desktop table -->
-    <UCard class="hidden md:block" :ui="{ body: { padding: 'p-0' } }">
+    <UCard v-else class="hidden md:block" :ui="{ body: { padding: 'p-0' } }">
       <UTable :data="paginatedRows" :columns="columns" :loading="pending" class="w-full">
         <template #username-cell="{ row }">
           <div class="flex items-center gap-3 py-1">
@@ -312,8 +330,22 @@ const roleFilter = ['Alpha', 'Delta']
 
     <!-- Mobile card list -->
     <div class="md:hidden">
-      <div v-if="pending" class="flex justify-center py-12">
-        <UIcon name="i-heroicons-arrow-path" class="text-3xl text-gray-400 animate-spin" />
+      <div v-if="pending" class="flex flex-col gap-3">
+        <UCard v-for="i in 5" :key="i">
+          <div class="flex items-center gap-3">
+            <USkeleton class="h-10 w-10 rounded-lg shrink-0" />
+            <div class="flex-1 space-y-2">
+              <USkeleton class="h-4 w-32" />
+              <USkeleton class="h-3 w-20" />
+            </div>
+            <USkeleton class="h-7 w-7 rounded-md" />
+            <USkeleton class="h-7 w-7 rounded-md" />
+          </div>
+          <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+            <USkeleton class="h-4 w-24" />
+            <USkeleton class="h-5 w-20 rounded-full ml-auto" />
+          </div>
+        </UCard>
       </div>
 
       <div v-else-if="paginatedRows.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-500">

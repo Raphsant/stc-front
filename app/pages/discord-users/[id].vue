@@ -2,7 +2,7 @@
 const route = useRoute()
 const userId = route.params.id
 
-const { data: user, pending, error } = await useFetch(`/api/discord-users/${userId}`)
+const { data: user, pending, error } = useFetch(`/api/discord-users/${userId}`)
 
 const colorMap: Record<string, any> = {
   'Alpha.': 'warning',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
-const { data: meeting, pending, error } = await useFetch(`/api/meetings/${route.params.id}`)
+const { data: meeting, pending, error } = useFetch(`/api/meetings/${route.params.id}`)
 
 const columns = [
   {

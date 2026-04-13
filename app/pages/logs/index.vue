@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { data: logs, pending, error } = await useFetch('/api/logs', {
+const { data: logs, pending, error } = useFetch('/api/logs', {
   query: { limit: 50 }
 })
 
@@ -83,11 +83,32 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
       />
     </div>
 
-    <UCard :ui="{ body: { padding: 'p-0' } }" class="bg-neutral-900/50 border-neutral-800">
+    <UCard v-if="pending" :ui="{ body: { padding: 'p-4' } }" class="bg-neutral-900/50 border-neutral-800">
+      <div class="space-y-4">
+        <div v-for="i in 10" :key="i" class="flex items-center gap-4">
+          <USkeleton class="h-8 w-8 rounded-lg shrink-0" />
+          <div class="space-y-1.5 flex-1">
+            <USkeleton class="h-3.5 w-28" />
+            <USkeleton class="h-3 w-20" />
+          </div>
+          <USkeleton class="h-5 w-24 rounded-full hidden sm:block" />
+          <div class="hidden sm:flex flex-col gap-1">
+            <USkeleton class="h-3.5 w-32" />
+            <USkeleton class="h-3 w-20" />
+          </div>
+          <USkeleton class="h-3.5 w-24 hidden lg:block" />
+          <div class="flex gap-1 ml-auto">
+            <USkeleton class="h-7 w-7 rounded-md" />
+            <USkeleton class="h-7 w-7 rounded-md" />
+          </div>
+        </div>
+      </div>
+    </UCard>
+
+    <UCard v-else :ui="{ body: { padding: 'p-0' } }" class="bg-neutral-900/50 border-neutral-800">
       <UTable
         :data="logs || []"
         :columns="columns"
-        :loading="pending"
         class="w-full"
       >
         <!-- User Column -->

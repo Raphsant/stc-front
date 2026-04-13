@@ -2,7 +2,7 @@
 const route = useRoute()
 const userId = computed(() => route.query.userId as string)
 
-const { data: meetings, pending, error, refresh } = await useFetch('/api/meetings', {
+const { data: meetings, pending, error, refresh } = useFetch('/api/meetings', {
   query: computed(() => ({ userId: userId.value }))
 })
 
@@ -63,11 +63,22 @@ watch(userId, () => refresh())
       />
     </div>
 
-    <UCard :ui="{ body: { padding: 'p-0' } }">
+    <UCard v-if="pending" :ui="{ body: { padding: 'p-4' } }">
+      <div class="space-y-3">
+        <div v-for="i in 8" :key="i" class="flex items-center gap-4">
+          <USkeleton class="h-4 w-4 rounded shrink-0" />
+          <USkeleton class="h-4 w-48" />
+          <USkeleton class="h-4 w-36 ml-auto" />
+          <USkeleton class="h-4 w-10" />
+          <USkeleton class="h-7 w-7 rounded-md" />
+        </div>
+      </div>
+    </UCard>
+
+    <UCard v-else :ui="{ body: { padding: 'p-0' } }">
       <UTable
         :data="meetings || []"
         :columns="columns"
-        :loading="pending"
         class="w-full"
       >
         <template #meetingId-cell="{ row }">

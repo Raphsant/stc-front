@@ -140,9 +140,3 @@ const currentRouteName = computed(() => {
 })
 </script>
 
-<style>
-/* Custom primary color overrides if needed, but Nuxt UI handles most */
-:root {
-  --primary-500: #eab308; /* yellow-500ish gold */
-}
-</style>

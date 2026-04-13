@@ -1,4 +1,17 @@
 <script setup lang="ts">
+import { Line } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Filler,
+} from 'chart.js'
+
+ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Filler)
+
 const nuxtApp = useNuxtApp()
 const {data: discordInfo, pending: discordPending} = await useFetch('https://stc.snuuy.com/webhooks/discord-info', {
   method: 'GET',
@@ -23,6 +36,99 @@ const {data: logs, pending: logsPending} = await useFetch('/api/logs', {
   query: {limit: 5},
   lazy: true
 })
+
+type Period = 'daily' | 'weekly' | 'monthly'
+const period = ref<Period>('daily')
+
+const chartFrom = ref('')
+const chartTo = ref('')
+
+function clearChartDates() {
+  chartFrom.value = ''
+  chartTo.value = ''
+}
+
+const { data: stats, pending: statsPending } = useFetch('/api/logs/stats', {
+  query: computed(() => ({
+    period: period.value,
+    ...(chartFrom.value ? { from: chartFrom.value } : {}),
+    ...(chartTo.value ? { to: chartTo.value } : {}),
+  })),
+  lazy: true,
+})
+
+const periodLabels: Record<Period, string> = {
+  daily: 'Diario',
+  weekly: 'Semanal',
+  monthly: 'Mensual',
+}
+
+// Read the actual primary color from CSS so Chart.js canvas can use it
+const primaryRgb = ref('99, 102, 241')
+
+onMounted(() => {
+  const el = document.createElement('span')
+  el.className = 'bg-primary-500'
+  el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+  document.body.appendChild(el)
+  const bg = getComputedStyle(el).backgroundColor
+  document.body.removeChild(el)
+  const match = bg.match(/\d+/g)
+  if (match) primaryRgb.value = `${match[0]}, ${match[1]}, ${match[2]}`
+})
+
+const chartData = computed(() => {
+  const entries = stats.value || []
+  const rgb = primaryRgb.value
+  return {
+    labels: entries.map((e: any) => e.date),
+    datasets: [{
+      data: entries.map((e: any) => e.count),
+      borderColor: `rgb(${rgb})`,
+      borderWidth: 2,
+      fill: true,
+      // Gradient fill — top: primary at ~20% opacity → bottom: transparent (mirrors Nuxt UI "subtle" badge)
+      backgroundColor: (context: any) => {
+        const chart = context.chart
+        const { ctx, chartArea } = chart
+        if (!chartArea) return `rgba(${rgb}, 0.1)`
+        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+        gradient.addColorStop(0, `rgba(${rgb}, 0.2)`)
+        gradient.addColorStop(1, `rgba(${rgb}, 0)`)
+        return gradient
+      },
+      tension: 0.4,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: `rgb(${rgb})`,
+      pointBorderColor: 'transparent',
+    }],
+  }
+})
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (ctx: any) => ` ${ctx.parsed.y} registro${ctx.parsed.y !== 1 ? 's' : ''}`,
+      },
+    },
+  },
+  scales: {
+    x: {
+      grid: { color: 'rgba(255,255,255,0.05)' },
+      ticks: { color: '#9ca3af', font: { size: 11 } },
+    },
+    y: {
+      grid: { color: 'rgba(255,255,255,0.05)' },
+      ticks: { color: '#9ca3af', font: { size: 11 }, precision: 0 },
+      beginAtZero: true,
+    },
+  },
+}
 
 const quickStats = computed(() => [
   {
@@ -116,6 +222,65 @@ function formatDateOnly(date: string | Date) {
         </div>
       </UCard>
     </div>
+
+    <!-- Registration Chart -->
+    <UCard class="bg-neutral-900/50 border-neutral-800">
+      <template #header>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 class="font-semibold text-neutral-200">Registros por período</h3>
+          <div class="flex flex-wrap items-end gap-3">
+            <!-- Grouping toggles -->
+            <div class="flex gap-1">
+              <UButton
+                v-for="p in (['daily', 'weekly', 'monthly'] as Period[])"
+                :key="p"
+                size="xs"
+                :variant="period === p ? 'solid' : 'ghost'"
+                :color="period === p ? 'primary' : 'neutral'"
+                @click="period = p"
+              >
+                {{ periodLabels[p] }}
+              </UButton>
+            </div>
+
+            <div class="h-4 w-px bg-neutral-700 hidden sm:block self-center" />
+
+            <!-- Date range pickers -->
+            <div class="flex items-end gap-2">
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-neutral-500">Desde</span>
+                <UInput v-model="chartFrom" type="date" size="xs" class="w-32" />
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-xs text-neutral-500">Hasta</span>
+                <UInput v-model="chartTo" type="date" size="xs" class="w-32" />
+              </div>
+              <UButton
+                v-if="chartFrom || chartTo"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-heroicons-x-mark"
+                class="mb-0.5"
+                @click="clearChartDates"
+              />
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div class="h-64">
+        <div v-if="statsPending" class="h-full">
+          <USkeleton class="w-full h-full rounded-lg" />
+        </div>
+        <div v-else-if="!stats?.length" class="flex items-center justify-center h-full text-neutral-500 text-sm">
+          No hay datos para este período.
+        </div>
+        <ClientOnly v-else>
+          <Line :data="chartData" :options="chartOptions" class="h-full! w-full!" />
+        </ClientOnly>
+      </div>
+    </UCard>
 
     <!-- Bot Health & Performance -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

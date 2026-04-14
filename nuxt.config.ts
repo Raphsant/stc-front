@@ -5,7 +5,7 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
   devtools: { enabled: true },
-  modules: ['@nuxt/ui', 'nuxt-mongoose', 'nuxt-auth-utils'],
+  modules: ['@nuxt/ui', 'nuxt-mongoose', 'nuxt-auth-utils', '@nuxt/content'],
   css: ['~/assets/css/main.css'],
   colorMode: {
     preference: 'dark'

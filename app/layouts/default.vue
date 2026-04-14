@@ -132,10 +132,11 @@ const navItems = [
   { label: 'Meetings', icon: 'i-heroicons-list-bullet-20-solid', to: '/meetings' },
   { label: 'Logs', icon: 'i-heroicons-document-text-solid', to: '/logs' },
   { label: 'Bot Status', icon: 'i-heroicons-signal-20-solid', to: '/status' },
+  { label: 'Changelog', icon: 'i-heroicons-document-text-20-solid', to: '/changelog' },
 ]
 
 const currentRouteName = computed(() => {
-  const item = navItems.find(i => i.to === route.path)
+  const item = navItems.find(i => route.path === i.to || route.path.startsWith(i.to + '/'))
   return item ? item.label : 'Dashboard'
 })
 </script>

@@ -368,6 +368,9 @@ function formatDateOnly(date: string | Date) {
                   <span class="text-primary-500" v-else>Alguien</span>
                   <span class="text-neutral-400"> se registró para </span>
                   <span class="text-neutral-200 font-semibold">{{ log.meetingId?.name || log.meetingId?.meetingId || 'un meeting' }}</span>
+                  <UBadge v-if="(log.count ?? 1) > 1" variant="subtle" color="warning" size="xs" class="ml-1 font-mono">
+                    {{ log.count }}x
+                  </UBadge>
                   <UBadge v-if="log.meetingId?.occurredAt" variant="subtle" color="primary" size="xs" class="ml-1">
                     {{ formatDateOnly(log.meetingId.occurredAt) }}
                   </UBadge>

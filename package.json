@@ -12,8 +12,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@nuxt/content": "^3.13.0",
     "@nuxt/ui": "^4.6.1",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.9.0",
     "chart.js": "^4.5.1",
     "nuxt": "^4.4.2",
     "nuxt-auth-utils": "^0.5.29",

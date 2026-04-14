@@ -25,6 +25,11 @@ const columns = [
     class: 'hidden lg:table-cell'
   },
   {
+    accessorKey: 'count',
+    header: 'Intentos',
+    class: 'hidden sm:table-cell'
+  },
+  {
     id: 'actions',
     header: '',
     class: 'px-2 sm:px-4'
@@ -174,6 +179,20 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
             </div>
           </div>
           <span v-else class="text-neutral-500 text-[10px] sm:text-sm italic">N/A</span>
+        </template>
+
+        <!-- Count Column -->
+        <template #count-cell="{ row }">
+          <div class="flex items-center gap-1.5">
+            <UBadge
+              :color="(row.original.count ?? 1) > 1 ? 'warning' : 'neutral'"
+              :variant="(row.original.count ?? 1) > 1 ? 'subtle' : 'soft'"
+              size="sm"
+              class="font-mono tabular-nums"
+            >
+              {{ row.original.count ?? 1 }}x
+            </UBadge>
+          </div>
         </template>
 
         <!-- Registration Date Column -->

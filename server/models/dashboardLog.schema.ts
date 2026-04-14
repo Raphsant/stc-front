@@ -23,6 +23,11 @@ export const DashBoardLog = defineMongooseModel({
             type: String,
             required: false,
             ref: 'ZoomLog',
+        },
+        count: {
+            type: Number,
+            required: true,
+            default: 1,
         }
     }
 })

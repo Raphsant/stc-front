@@ -69,12 +69,14 @@ export default defineEventHandler(async (event) => {
             }
 
             //@ts-ignore
-            await DashBoardLog.create([{
-                userId,
-                occurredAt: new Date(),
-                logType: ['zoom-register'],
-                meetingId,
-            }], { session })
+            await DashBoardLog.findOneAndUpdate(
+                { userId, meetingId, logType: ['zoom-register'] },
+                {
+                    $inc: { count: 1 },
+                    $setOnInsert: { occurredAt: new Date() },
+                },
+                { upsert: true, session }
+            )
         }
 
         await session.commitTransaction()

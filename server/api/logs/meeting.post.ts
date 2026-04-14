@@ -34,9 +34,11 @@ export default defineEventHandler(async (event) => {
 
         if (discordUser) {
             const { id: userId, username, roles } = discordUser
-
+            //@ts-ignore
             if (!log.participants.includes(userId)) {
+                //@ts-ignore
                 log.participants.push(userId)
+                //@ts-ignore
                 await log.save({ session })
             }
 

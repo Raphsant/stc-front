@@ -83,7 +83,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
       />
     </div>
 
-    <UCard v-if="pending" :ui="{ body: { padding: 'p-4' } }" class="bg-neutral-900/50 border-neutral-800">
+    <UCard v-if="pending" class="bg-neutral-900/50 border-neutral-800">
       <div class="space-y-4">
         <div v-for="i in 10" :key="i" class="flex items-center gap-4">
           <USkeleton class="h-8 w-8 rounded-lg shrink-0" />
@@ -105,7 +105,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
       </div>
     </UCard>
 
-    <UCard v-else :ui="{ body: { padding: 'p-0' } }" class="bg-neutral-900/50 border-neutral-800">
+    <UCard v-else class="bg-neutral-900/50 border-neutral-800">
       <UTable
         :data="logs || []"
         :columns="columns"
@@ -119,7 +119,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
               :alt="row.original.userId.username"
               size="xs"
               class="sm:size-sm"
-              :ui="{ rounded: 'rounded-lg' }"
+
             />
             <div v-else class="p-1.5 sm:p-2 rounded-lg bg-neutral-800 text-neutral-500">
               <UIcon name="i-heroicons-user" class="w-3.5 h-3.5 sm:w-5 sm:h-5" />

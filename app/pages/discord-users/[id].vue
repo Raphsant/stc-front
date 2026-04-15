@@ -4,6 +4,12 @@ const userId = route.params.id
 
 const { data: user, pending, error } = useFetch(`/api/discord-users/${userId}`)
 
+useSeoMeta({
+  title: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
+  description: computed(() => user.value ? `Perfil de ${user.value.username} en el Stock Trading Club.` : 'Perfil de usuario.'),
+  ogTitle: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
+})
+
 const colorMap: Record<string, any> = {
   'Alpha.': 'warning',
   'Alpha': 'warning',

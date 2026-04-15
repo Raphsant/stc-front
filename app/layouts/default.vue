@@ -111,6 +111,9 @@
       <!-- Page Content -->
       <div class="flex-1 overflow-y-auto p-4 md:p-8">
         <slot />
+        <footer class="mt-12 pt-4 border-t border-neutral-800 text-center text-xs text-neutral-600">
+          Made by Sunny for Stock Trading Club
+        </footer>
       </div>
     </main>
   </div>

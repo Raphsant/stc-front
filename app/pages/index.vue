@@ -1,4 +1,10 @@
 <script setup lang="ts">
+useSeoMeta({
+  title: 'Dashboard - STC Control',
+  description: 'Panel de control del Stock Trading Club. Estadísticas, actividad reciente y estado del sistema.',
+  ogTitle: 'Dashboard - STC Control',
+})
+
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -20,6 +26,16 @@ const {data: discordInfo, pending: discordPending} = await useFetch('https://stc
     return nuxtApp.payload.data[key] || nuxtApp.static.data[key]
   }
 })
+useSeoMeta({
+  title: 'Dashboard - STC control',
+  description: 'Control de Registros',
+  ogTitle: 'STC - Control de Registros',
+  favicon: '/favicon.ico'
+})
+
+
+
+
 // const { data: botStatus, pending: statusPending } = await useFetch('https://stc.snuuy.com/health', {
 //   method: 'GET',
 //   key: 'bot-status',

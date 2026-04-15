@@ -1,4 +1,10 @@
 <script setup lang="ts">
+useSeoMeta({
+  title: 'Logs - STC Control',
+  description: 'Historial detallado de todas las acciones del sistema y registros de usuarios.',
+  ogTitle: 'Registro de Actividad - STC Control',
+})
+
 const { data: logs, pending, error } = useFetch('/api/logs')
 
 const page  = ref(1)

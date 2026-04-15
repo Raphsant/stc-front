@@ -1,4 +1,10 @@
 <script setup lang="ts">
+useSeoMeta({
+  title: 'Estado del Sistema - STC Control',
+  description: 'Estado en tiempo real del bot de Discord y los servicios del Stock Trading Club.',
+  ogTitle: 'Estado del Sistema - STC Control',
+})
+
 const nuxtApp = useNuxtApp()
 const { data: status, pending, error, refresh } = await useFetch('https://stc.snuuy.com/health', {
   method: 'GET',

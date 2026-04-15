@@ -4,6 +4,12 @@ const toast  = useToast()
 
 const { data: meeting, pending, error, refresh } = useFetch(`/api/meetings/${route.params.id}`)
 
+useSeoMeta({
+  title: computed(() => meeting.value ? `${meeting.value.name} - STC Control` : 'Meeting - STC Control'),
+  description: computed(() => meeting.value ? `Detalles y asistentes del meeting ${meeting.value.name}.` : 'Detalles del meeting.'),
+  ogTitle: computed(() => meeting.value ? `${meeting.value.name} - STC Control` : 'Meeting - STC Control'),
+})
+
 // ── Confirmation state ──────────────────────────────────────────
 const confirmUser     = ref<{ _id: string, username: string } | null>(null)
 const confirmClearAll = ref(false)

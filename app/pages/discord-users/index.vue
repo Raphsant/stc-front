@@ -1,4 +1,10 @@
 <script setup lang="ts">
+useSeoMeta({
+  title: 'Usuarios - STC Control',
+  description: 'Directorio de miembros del Discord del Stock Trading Club.',
+  ogTitle: 'Usuarios de Discord - STC Control',
+})
+
 const dateFrom = ref('')
 const dateTo = ref('')
 

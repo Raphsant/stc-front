@@ -1,4 +1,10 @@
 <script setup lang="ts">
+useSeoMeta({
+  title: 'Changelog - STC Control',
+  description: 'Historial de versiones y cambios del sistema STC Control.',
+  ogTitle: 'Changelog - STC Control',
+})
+
 const { data: entries } = await useAsyncData('changelog', () =>
   queryCollection('changelog').order('date', 'DESC').all()
 )

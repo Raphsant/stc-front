@@ -2,6 +2,12 @@
 const route = useRoute()
 const userId = computed(() => route.query.userId as string)
 
+useSeoMeta({
+  title: computed(() => userId.value ? 'Meetings del Usuario - STC Control' : 'Meetings - STC Control'),
+  description: 'Registro de sesiones de Zoom del Stock Trading Club.',
+  ogTitle: 'Meetings - STC Control',
+})
+
 const { data: meetings, pending, error, refresh } = useFetch('/api/meetings', {
   query: computed(() => ({ userId: userId.value }))
 })

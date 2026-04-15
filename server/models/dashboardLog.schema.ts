@@ -1,4 +1,5 @@
 import {defineMongooseModel} from "#nuxt/mongoose";
+import mongoose from "mongoose";
 
 
 export const DashBoardLog = defineMongooseModel({
@@ -19,8 +20,8 @@ export const DashBoardLog = defineMongooseModel({
             required: true,
             enum: ['zoom-register', 'zoom-refresh', 'discord-command', 'discord-moderation', 'clickfunnels']
         },
-        meetingId:{
-            type: String,
+        zoomLogId: {
+            type: mongoose.Schema.Types.ObjectId,
             required: false,
             ref: 'ZoomLog',
         },

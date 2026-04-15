@@ -30,7 +30,7 @@ useSeoMeta({
   title: 'Dashboard - STC control',
   description: 'Control de Registros',
   ogTitle: 'STC - Control de Registros',
-  favicon: '/favicon.ico'
+  favicon: '/faviconstc.ico'
 })
 
 

@@ -55,7 +55,7 @@ useSeoMeta({
   title: 'Login - STC control',
   description: 'Control de Registros',
   ogTitle: 'STC - Control de Registros',
-  favicon: '/favicon.ico'
+  favicon: '/faviconstc.ico'
 })
 
 const { fetch: refreshSession } = useUserSession()

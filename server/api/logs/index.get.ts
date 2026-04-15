@@ -1,18 +1,13 @@
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const limit = Number(query.limit) || 20
+  const limit = Number(query.limit) || 200
 
   try {
     const logs = await DashBoardLog.find()
       .sort({ occurredAt: -1 })
       .limit(limit)
       .populate('userId')
-      .populate({
-        path: 'meetingId',
-        model: 'ZoomLog',
-        localField: 'meetingId',
-        foreignField: 'meetingId'
-      })
+      .populate('zoomLogId')
 
     return logs
   } catch (error: any) {

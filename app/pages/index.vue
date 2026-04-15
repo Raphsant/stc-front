@@ -367,12 +367,12 @@ function formatDateOnly(date: string | Date) {
                     }}</span>
                   <span class="text-primary-500" v-else>Alguien</span>
                   <span class="text-neutral-400"> se registró para </span>
-                  <span class="text-neutral-200 font-semibold">{{ log.meetingId?.name || log.meetingId?.meetingId || 'un meeting' }}</span>
+                  <span class="text-neutral-200 font-semibold">{{ log.zoomLogId?.name || log.zoomLogId?.meetingId || 'un meeting' }}</span>
                   <UBadge v-if="(log.count ?? 1) > 1" variant="subtle" color="warning" size="xs" class="ml-1 font-mono">
                     {{ log.count }}x
                   </UBadge>
-                  <UBadge v-if="log.meetingId?.occurredAt" variant="subtle" color="primary" size="xs" class="ml-1">
-                    {{ formatDateOnly(log.meetingId.occurredAt) }}
+                  <UBadge v-if="log.zoomLogId?.occurredAt" variant="subtle" color="primary" size="xs" class="ml-1">
+                    {{ formatDateOnly(log.zoomLogId.occurredAt) }}
                   </UBadge>
                 </p>
                 <div class="mt-1 flex items-center gap-1.5">
@@ -384,7 +384,7 @@ function formatDateOnly(date: string | Date) {
               </div>
             </div>
             <div class="flex items-center gap-3">
-              <UButton v-if="log.meetingId?._id" :to="`/meetings/${log.meetingId._id}`" color="neutral" variant="ghost" size="sm"
+              <UButton v-if="log.zoomLogId?._id" :to="`/meetings/${log.zoomLogId._id}`" color="neutral" variant="ghost" size="sm"
                        icon="i-heroicons-chevron-right"/>
             </div>
           </div>

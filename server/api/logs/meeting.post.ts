@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
 
             //@ts-ignore
             await DashBoardLog.findOneAndUpdate(
-                { userId, meetingId, logType: ['zoom-register'] },
+                { userId, zoomLogId: log._id, logType: ['zoom-register'] },
                 {
                     $inc: { count: 1 },
                     $setOnInsert: { occurredAt: new Date() },

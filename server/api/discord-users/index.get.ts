@@ -40,6 +40,7 @@ export default defineEventHandler(async (event) => {
                     username: 1,
                     roles: 1,
                     previousUsernames: 1,
+                    messageCount: 1,
                     meetingCount: { $size: filteredMeetings },
                     lastMeeting: { $max: '$meetings.occurredAt' }
                 }

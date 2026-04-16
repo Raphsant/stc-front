@@ -20,6 +20,7 @@ const selectedRoles = ref<string[]>([])
 const excludeKnownRoles = ref(false)
 const zeroMeetings = ref(false)
 const meetingSort = ref<'asc' | 'desc' | null>(null)
+const messageSort = ref<'asc' | 'desc' | null>(null)
 
 function clearDateFilter() {
   dateFrom.value = ''
@@ -27,14 +28,28 @@ function clearDateFilter() {
 }
 
 function cycleMeetingSort() {
+  messageSort.value = null
   if (meetingSort.value === null) meetingSort.value = 'asc'
   else if (meetingSort.value === 'asc') meetingSort.value = 'desc'
   else meetingSort.value = null
 }
 
+function cycleMessageSort() {
+  meetingSort.value = null
+  if (messageSort.value === null) messageSort.value = 'asc'
+  else if (messageSort.value === 'asc') messageSort.value = 'desc'
+  else messageSort.value = null
+}
+
 const meetingSortIcon = computed(() => {
   if (meetingSort.value === 'asc') return 'i-heroicons-chevron-up'
   if (meetingSort.value === 'desc') return 'i-heroicons-chevron-down'
+  return 'i-heroicons-chevron-up-down'
+})
+
+const messageSortIcon = computed(() => {
+  if (messageSort.value === 'asc') return 'i-heroicons-chevron-up'
+  if (messageSort.value === 'desc') return 'i-heroicons-chevron-down'
   return 'i-heroicons-chevron-up-down'
 })
 const page = ref(1)
@@ -73,12 +88,21 @@ const filteredRows = computed(() => {
 
 // 2. Sort the filtered list
 const sortedRows = computed(() => {
-  if (!meetingSort.value) return filteredRows.value
-  return [...filteredRows.value].sort((a: any, b: any) => {
-    const av = a.meetingCount ?? 0
-    const bv = b.meetingCount ?? 0
-    return meetingSort.value === 'asc' ? av - bv : bv - av
-  })
+  if (meetingSort.value) {
+    return [...filteredRows.value].sort((a: any, b: any) => {
+      const av = a.meetingCount ?? 0
+      const bv = b.meetingCount ?? 0
+      return meetingSort.value === 'asc' ? av - bv : bv - av
+    })
+  }
+  if (messageSort.value) {
+    return [...filteredRows.value].sort((a: any, b: any) => {
+      const av = a.messageCount ?? 0
+      const bv = b.messageCount ?? 0
+      return messageSort.value === 'asc' ? av - bv : bv - av
+    })
+  }
+  return filteredRows.value
 })
 
 // 3. Slice for the current page
@@ -89,31 +113,17 @@ const paginatedRows = computed(() => {
 })
 
 // 4. Reset to page 1 when filters change
-watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, dateFrom, dateTo], () => {
+watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, dateFrom, dateTo, meetingSort, messageSort], () => {
   page.value = 1
 })
 
 const columns = [
-  {
-    accessorKey: 'username',
-    header: 'User',
-  },
-  {
-    accessorKey: 'roles',
-    header: 'Roles',
-  },
-  {
-    accessorKey: 'meetingCount',
-    header: 'Meetings',
-  },
-  {
-    accessorKey: 'lastMeeting',
-    header: 'Última reunión',
-  },
-  {
-    id: 'actions',
-    header: '',
-  }
+  { accessorKey: 'username',     header: 'User' },
+  { accessorKey: 'roles',        header: 'Roles' },
+  { accessorKey: 'meetingCount', header: 'Meetings' },
+  { accessorKey: 'messageCount', header: 'Mensajes' },
+  { accessorKey: 'lastMeeting',  header: 'Última reunión' },
+  { id: 'actions',               header: '' },
 ]
 
 const colorMap: Record<string, any> = {
@@ -204,6 +214,17 @@ const roleFilter = ['Alpha', 'Delta']
             @click="cycleMeetingSort"
           >
             Reuniones
+          </UButton>
+
+          <UButton
+            size="sm"
+            color="neutral"
+            :variant="messageSort ? 'solid' : 'outline'"
+            :trailing-icon="messageSortIcon"
+            class="md:hidden"
+            @click="cycleMessageSort"
+          >
+            Mensajes
           </UButton>
         </div>
 
@@ -302,6 +323,18 @@ const roleFilter = ['Alpha', 'Delta']
           </UBadge>
         </template>
 
+        <template #messageCount-header>
+          <UButton variant="ghost" size="xs" :trailing-icon="messageSortIcon" :color="messageSort ? 'primary' : 'neutral'" @click="cycleMessageSort">
+            Mensajes
+          </UButton>
+        </template>
+
+        <template #messageCount-cell="{ row }">
+          <UBadge :color="(row.original.messageCount ?? 0) > 0 ? 'info' : 'neutral'" variant="flat" class="min-w-[2.5rem] justify-center">
+            {{ row.original.messageCount ?? 0 }}
+          </UBadge>
+        </template>
+
         <template #lastMeeting-cell="{ row }">
           <UBadge v-if="row.original.lastMeeting" color="primary" variant="subtle">
             {{ new Date(row.original.lastMeeting).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }}
@@ -386,9 +419,11 @@ const roleFilter = ['Alpha', 'Delta']
             </div>
           </div>
 
-          <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+          <div class="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
             <UIcon name="i-heroicons-video-camera" class="text-gray-400 shrink-0" />
             <span class="text-sm text-gray-500">{{ user.meetingCount }} {{ user.meetingCount === 1 ? 'reunión' : 'reuniones' }}</span>
+            <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="text-gray-400 shrink-0 ml-1" />
+            <span class="text-sm text-gray-500">{{ user.messageCount ?? 0 }} mensajes</span>
             <div class="ml-auto">
               <UBadge v-if="user.lastMeeting" color="primary" variant="subtle" size="sm">
                 {{ new Date(user.lastMeeting).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }}

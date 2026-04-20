@@ -1,5 +1,6 @@
 {
   "name": "stc-front",
+  "version": "0.2.1-beta",
   "type": "module",
   "private": true,
   "scripts": {

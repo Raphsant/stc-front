@@ -26,10 +26,10 @@
 
       <div class="mt-auto p-6 border-t border-cream-400 dark:border-neutral-800">
         <div class="flex items-center gap-3">
-          <UAvatar :alt="session.user?.username" size="sm" />
+          <UAvatar :alt="session?.user?.username" size="sm" />
           <div class="flex flex-col overflow-hidden flex-1">
-            <span class="text-sm font-medium truncate">{{ session.user?.username }}</span>
-            <span class="text-xs text-neutral-500 dark:text-neutral-400 truncate text-primary-500/80">Admin</span>
+            <span class="text-sm font-medium truncate">{{ session?.user?.username }}</span>
+            <span class="text-xs text-neutral-500 dark:text-neutral-400 truncate ">Admin</span>
           </div>
           <UButton
             icon="i-heroicons-arrow-right-on-rectangle-20-solid"
@@ -78,9 +78,10 @@
 
           <div class="border-t border-cream-400 dark:border-neutral-800 pt-4 mt-4">
             <div class="flex items-center gap-3">
-              <UAvatar :alt="session.user?.username" size="sm" />
+
+              <UAvatar :alt="session?.user?.username" size="sm" />
               <div class="flex flex-col overflow-hidden flex-1">
-                <span class="text-sm font-medium truncate">{{ session.user?.username }}</span>
+                <span class="text-sm font-medium truncate">{{ session?.user?.username }}</span>
                 <span class="text-xs text-neutral-500 dark:text-neutral-400 text-primary-500/80">Admin</span>
               </div>
               <UButton
@@ -103,7 +104,9 @@
       <header class="hidden md:flex h-16 items-center justify-between px-8 bg-cream-200/50 dark:bg-neutral-900/50 backdrop-blur-sm border-b border-cream-400 dark:border-neutral-800">
         <h1 class="text-lg font-semibold">{{ currentRouteName }}</h1>
         <div class="flex items-center gap-4">
-          <UBadge color="success" variant="soft" class="font-mono">v0.1.1-beta</UBadge>
+          <UBadge @click="() => navigateTo('/changelog')" color="primary" variant="subtle" class="font-mono cursor-pointer">
+            v{{ appVersion }}
+          </UBadge>
           <UColorModeButton color="neutral" variant="ghost" />
           <UButton icon="i-heroicons-bell-20-solid" color="neutral" variant="ghost" />
         </div>
@@ -124,6 +127,7 @@
 const isMobileMenuOpen = ref(false)
 const route = useRoute()
 const { session } = useUserSession()
+const { public: { appVersion } } = useRuntimeConfig()
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })

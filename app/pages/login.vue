@@ -1,76 +1,52 @@
 <template>
   <div class="min-h-screen bg-cream-100 dark:bg-neutral-950 flex items-center justify-center p-4">
-    <UCard class="w-full max-w-sm dark:bg-neutral-900 dark:border-neutral-800">
-      <template #header>
-        <div class="flex items-center gap-2">
-          <UIcon name="i-heroicons-bolt-20-solid" class="w-6 h-6 text-primary-500" />
-          <span class="text-lg font-bold tracking-tight">STC Control</span>
-        </div>
-      </template>
-
-      <form class="space-y-4" @submit.prevent="login">
-        <UFormField label="Username" name="username">
-          <UInput
-            v-model="form.username"
-            placeholder="username"
-            autocomplete="username"
-            :disabled="loading"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Password" name="password">
-          <UInput
-            v-model="form.password"
-            type="password"
-            placeholder="••••••••"
-            autocomplete="current-password"
-            :disabled="loading"
-            class="w-full"
-          />
-        </UFormField>
-
+    <UAuthForm
+      title="STC Control"
+      icon="i-heroicons-bolt-20-solid"
+      :fields="fields"
+      :submit="{ label: 'Iniciar sesión', color: 'primary', block: true }"
+      :loading="loading"
+      class="w-full max-w-sm"
+      @submit="login"
+    >
+      <template #validation>
         <UAlert
           v-if="error"
           color="error"
-          variant="subtle"
+          variant="soft"
           :title="error"
+          class="mb-2"
         />
-
-        <UButton
-          type="submit"
-          color="primary"
-          block
-          :loading="loading"
-          label="Sign in"
-        />
-      </form>
-    </UCard>
+      </template>
+    </UAuthForm>
   </div>
 </template>
 
 <script setup lang="ts">
 definePageMeta({ layout: false })
 useSeoMeta({
-  title: 'Login - STC control',
+  title: 'Login - STC Control',
   description: 'Control de Registros',
   ogTitle: 'STC - Control de Registros',
-  favicon: '/faviconstc.ico'
 })
 
 const { fetch: refreshSession } = useUserSession()
 
-const form = reactive({ username: '', password: '' })
 const loading = ref(false)
 const error = ref('')
 
-async function login() {
+const fields = [
+  { name: 'username', type: 'text' as const, label: 'Usuario', placeholder: 'username', autocomplete: 'username' },
+  { name: 'password', type: 'password' as const, label: 'Contraseña', placeholder: '••••••••', autocomplete: 'current-password' },
+]
+
+async function login(event: { data: Record<string, string> }) {
   error.value = ''
   loading.value = true
   try {
     await $fetch('/api/auth/login', {
       method: 'POST',
-      body: form,
+      body: { username: event.data.username, password: event.data.password },
     })
     await refreshSession()
     await navigateTo('/')

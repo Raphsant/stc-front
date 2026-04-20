@@ -40,3 +40,24 @@
   --color-primary-900: #3c2d0d;
   --color-primary-950: #221a07;
 }
+
+/* Page transitions */
+.page-enter-active,
+.page-leave-active {
+    transition: all 0.25s ease-out;
+}
+.page-enter-from,
+.page-leave-to {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+/* Layout transitions */
+.layout-enter-active,
+.layout-leave-active {
+    transition: all 0.25s;
+}
+.layout-enter-from,
+.layout-leave-to {
+    opacity: 0;
+}

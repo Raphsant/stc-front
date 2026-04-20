@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-    <UCard class="w-full max-w-sm bg-neutral-900 border border-neutral-800">
+  <div class="min-h-screen bg-cream-100 dark:bg-neutral-950 flex items-center justify-center p-4">
+    <UCard class="w-full max-w-sm dark:bg-neutral-900 dark:border-neutral-800">
       <template #header>
         <div class="flex items-center gap-2">
           <UIcon name="i-heroicons-bolt-20-solid" class="w-6 h-6 text-primary-500" />

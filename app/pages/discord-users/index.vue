@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const badgeVariant = useBadgeVariant()
+
 useSeoMeta({
   title: 'Usuarios - STC Control',
   description: 'Directorio de miembros del Discord del Stock Trading Club.',
@@ -19,39 +21,32 @@ const q = ref('')
 const selectedRoles = ref<string[]>([])
 const excludeKnownRoles = ref(false)
 const zeroMeetings = ref(false)
-const meetingSort = ref<'asc' | 'desc' | null>(null)
-const messageSort = ref<'asc' | 'desc' | null>(null)
+
+type SortKey = 'recent' | 'meetings' | 'messages30d' | 'lifetime'
+const sortBy = ref<SortKey>('recent')
+const sortDir = ref<'asc' | 'desc'>('desc')
 
 function clearDateFilter() {
   dateFrom.value = ''
   dateTo.value = ''
 }
 
-function cycleMeetingSort() {
-  messageSort.value = null
-  if (meetingSort.value === null) meetingSort.value = 'asc'
-  else if (meetingSort.value === 'asc') meetingSort.value = 'desc'
-  else meetingSort.value = null
+function setSort(key: SortKey) {
+  if (sortBy.value === key) {
+    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortBy.value = key
+    sortDir.value = 'desc'
+  }
 }
 
-function cycleMessageSort() {
-  meetingSort.value = null
-  if (messageSort.value === null) messageSort.value = 'asc'
-  else if (messageSort.value === 'asc') messageSort.value = 'desc'
-  else messageSort.value = null
-}
+const sortOptions: { key: SortKey; label: string }[] = [
+  { key: 'recent', label: 'Recientes' },
+  { key: 'meetings', label: 'Reuniones' },
+  { key: 'messages30d', label: 'Mensajes 30d' },
+  { key: 'lifetime', label: 'Mensajes total' },
+]
 
-const meetingSortIcon = computed(() => {
-  if (meetingSort.value === 'asc') return 'i-heroicons-chevron-up'
-  if (meetingSort.value === 'desc') return 'i-heroicons-chevron-down'
-  return 'i-heroicons-chevron-up-down'
-})
-
-const messageSortIcon = computed(() => {
-  if (messageSort.value === 'asc') return 'i-heroicons-chevron-up'
-  if (messageSort.value === 'desc') return 'i-heroicons-chevron-down'
-  return 'i-heroicons-chevron-up-down'
-})
 const page = ref(1)
 const limit = ref(10)
 
@@ -67,7 +62,6 @@ function toggleExclude() {
   if (excludeKnownRoles.value) selectedRoles.value = []
 }
 
-// 1. Filter the full list based on search, role, and meeting count
 const filteredRows = computed(() => {
   const allUsers = users.value || []
 
@@ -86,44 +80,46 @@ const filteredRows = computed(() => {
   })
 })
 
-// 2. Sort the filtered list
+function sortValue(user: any, key: SortKey): number {
+  switch (key) {
+    case 'recent': {
+      const msg = user.lastMessageAt ? new Date(user.lastMessageAt).getTime() : 0
+      const mtg = user.lastMeetingAt ? new Date(user.lastMeetingAt).getTime() : 0
+      return Math.max(msg, mtg)
+    }
+    case 'meetings': return user.meetingCount ?? 0
+    case 'messages30d': return user.messages30d ?? 0
+    case 'lifetime': return user.messageCount ?? 0
+  }
+}
+
 const sortedRows = computed(() => {
-  if (meetingSort.value) {
-    return [...filteredRows.value].sort((a: any, b: any) => {
-      const av = a.meetingCount ?? 0
-      const bv = b.meetingCount ?? 0
-      return meetingSort.value === 'asc' ? av - bv : bv - av
-    })
-  }
-  if (messageSort.value) {
-    return [...filteredRows.value].sort((a: any, b: any) => {
-      const av = a.messageCount ?? 0
-      const bv = b.messageCount ?? 0
-      return messageSort.value === 'asc' ? av - bv : bv - av
-    })
-  }
-  return filteredRows.value
+  const rows = [...filteredRows.value]
+  rows.sort((a: any, b: any) => {
+    const av = sortValue(a, sortBy.value)
+    const bv = sortValue(b, sortBy.value)
+    if (av === bv) return (a.username || '').localeCompare(b.username || '')
+    return sortDir.value === 'asc' ? av - bv : bv - av
+  })
+  return rows
 })
 
-// 3. Slice for the current page
 const paginatedRows = computed(() => {
   const start = (page.value - 1) * limit.value
   const end = start + limit.value
   return sortedRows.value.slice(start, end)
 })
 
-// 4. Reset to page 1 when filters change
-watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, dateFrom, dateTo, meetingSort, messageSort], () => {
+watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, dateFrom, dateTo, sortBy, sortDir], () => {
   page.value = 1
 })
 
 const columns = [
-  { accessorKey: 'username',     header: 'User' },
-  { accessorKey: 'roles',        header: 'Roles' },
-  { accessorKey: 'meetingCount', header: 'Meetings' },
-  { accessorKey: 'messageCount', header: 'Mensajes' },
-  { accessorKey: 'lastMeeting',  header: 'Última reunión' },
-  { id: 'actions',               header: '' },
+  { accessorKey: 'username', header: 'Usuario' },
+  { accessorKey: 'roles', header: 'Roles' },
+  { accessorKey: 'activity', header: 'Actividad' },
+  { accessorKey: 'lastActive', header: 'Última actividad' },
+  { id: 'actions', header: '' },
 ]
 
 const colorMap: Record<string, any> = {
@@ -131,6 +127,24 @@ const colorMap: Record<string, any> = {
   'Alpha': 'warning',
   'Delta': 'info',
   'Delta.': 'info',
+}
+
+const stateDotClass: Record<string, string> = {
+  active: 'bg-green-500',
+  slipping: 'bg-amber-500',
+  inactive: 'bg-red-500',
+  dormant: 'bg-gray-400',
+}
+
+function userEngagement(user: any) {
+  return getEngagementState(user.lastMessageAt, user.lastMeetingAt)
+}
+
+function lastActiveDate(user: any): Date | null {
+  const msg = user.lastMessageAt ? new Date(user.lastMessageAt).getTime() : 0
+  const mtg = user.lastMeetingAt ? new Date(user.lastMeetingAt).getTime() : 0
+  const max = Math.max(msg, mtg)
+  return max ? new Date(max) : null
 }
 
 const roleFilter = ['Alpha', 'Delta']
@@ -204,28 +218,6 @@ const roleFilter = ['Alpha', 'Delta']
           >
             Sin reuniones
           </UButton>
-
-          <UButton
-            size="sm"
-            color="neutral"
-            :variant="meetingSort ? 'solid' : 'outline'"
-            :trailing-icon="meetingSortIcon"
-            class="md:hidden"
-            @click="cycleMeetingSort"
-          >
-            Reuniones
-          </UButton>
-
-          <UButton
-            size="sm"
-            color="neutral"
-            :variant="messageSort ? 'solid' : 'outline'"
-            :trailing-icon="messageSortIcon"
-            class="md:hidden"
-            @click="cycleMessageSort"
-          >
-            Mensajes
-          </UButton>
         </div>
 
         <!-- Right: date range filter -->
@@ -248,6 +240,22 @@ const roleFilter = ['Alpha', 'Delta']
             @click="clearDateFilter"
           />
         </div>
+      </div>
+
+      <!-- Sort bar -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm text-gray-500">Ordenar:</span>
+        <UButton
+          v-for="opt in sortOptions"
+          :key="opt.key"
+          size="xs"
+          color="neutral"
+          :variant="sortBy === opt.key ? 'solid' : 'outline'"
+          :trailing-icon="sortBy === opt.key ? (sortDir === 'desc' ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-up') : undefined"
+          @click="setSort(opt.key)"
+        >
+          {{ opt.label }}
+        </UButton>
       </div>
     </div>
 
@@ -284,6 +292,11 @@ const roleFilter = ['Alpha', 'Delta']
       <UTable :data="paginatedRows" :columns="columns" :loading="pending" class="w-full">
         <template #username-cell="{ row }">
           <div class="flex items-center gap-3 py-1">
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="stateDotClass[userEngagement(row.original).state]"
+              :title="userEngagement(row.original).label"
+            />
             <UAvatar :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
             <span class="font-medium text-gray-900 dark:text-white">{{ row.original.username }}</span>
           </div>
@@ -292,7 +305,7 @@ const roleFilter = ['Alpha', 'Delta']
         <template #roles-cell="{ row }">
           <div class="flex flex-wrap gap-1.5">
             <template v-for="role in (row.original.roles || [])" :key="role">
-              <UBadge v-if="colorMap[role]" :color="colorMap[role]" variant="subtle" size="md" class="capitalize">
+              <UBadge v-if="colorMap[role]" :color="colorMap[role]" :variant="badgeVariant" size="md" class="capitalize">
                 {{ role }}
               </UBadge>
             </template>
@@ -311,43 +324,38 @@ const roleFilter = ['Alpha', 'Delta']
           </div>
         </template>
 
-        <template #meetingCount-header>
-          <UButton variant="ghost" size="xs" :trailing-icon="meetingSortIcon" :color="meetingSort ? 'primary' : 'neutral'" @click="cycleMeetingSort">
-            Meetings
-          </UButton>
+        <template #activity-cell="{ row }">
+          <div class="flex flex-col gap-0.5 tabular-nums text-sm">
+            <span class="text-gray-700 dark:text-gray-300">
+              <span class="font-semibold">{{ row.original.meetingCount ?? 0 }}</span>
+              <span class="text-gray-400"> mtgs</span>
+              <span class="text-gray-300 dark:text-gray-700 mx-1">·</span>
+              <span class="font-semibold">{{ row.original.messages30d ?? 0 }}</span>
+              <span class="text-gray-400"> msgs/30d</span>
+            </span>
+            <span class="text-xs text-gray-400">
+              {{ row.original.messageCount ?? 0 }} msgs total
+            </span>
+          </div>
         </template>
 
-        <template #meetingCount-cell="{ row }">
-          <UBadge :color="row.original.meetingCount > 0 ? 'primary' : 'neutral'" variant="flat" class="min-w-[2.5rem] justify-center">
-            {{ row.original.meetingCount }}
+        <template #lastActive-cell="{ row }">
+          <UBadge
+            v-if="lastActiveDate(row.original)"
+            :color="userEngagement(row.original).color"
+            :variant="badgeVariant"
+          >
+            {{ formatRelativeTime(lastActiveDate(row.original)) }}
           </UBadge>
-        </template>
-
-        <template #messageCount-header>
-          <UButton variant="ghost" size="xs" :trailing-icon="messageSortIcon" :color="messageSort ? 'primary' : 'neutral'" @click="cycleMessageSort">
-            Mensajes
-          </UButton>
-        </template>
-
-        <template #messageCount-cell="{ row }">
-          <UBadge :color="(row.original.messageCount ?? 0) > 0 ? 'info' : 'neutral'" variant="flat" class="min-w-[2.5rem] justify-center">
-            {{ row.original.messageCount ?? 0 }}
-          </UBadge>
-        </template>
-
-        <template #lastMeeting-cell="{ row }">
-          <UBadge v-if="row.original.lastMeeting" color="primary" variant="subtle">
-            {{ new Date(row.original.lastMeeting).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }}
-          </UBadge>
-          <UBadge v-else color="error" variant="subtle">Sin reuniones</UBadge>
+          <UBadge v-else color="neutral" :variant="badgeVariant">Nunca</UBadge>
         </template>
 
         <template #actions-cell="{ row }">
           <div class="flex justify-end gap-2">
-            <UTooltip text="View profile">
+            <UTooltip text="Ver perfil">
               <UButton :to="`/discord-users/${row.original._id}`" icon="i-heroicons-user" color="neutral" variant="ghost" />
             </UTooltip>
-            <UTooltip text="View user meetings">
+            <UTooltip text="Ver reuniones">
               <UButton :to="`/meetings?userId=${row.original._id}`" icon="i-heroicons-calendar-days" color="neutral" variant="ghost" />
             </UTooltip>
           </div>
@@ -356,8 +364,8 @@ const roleFilter = ['Alpha', 'Delta']
         <template #empty-state>
           <div class="flex flex-col items-center justify-center py-12 text-gray-500">
             <UIcon name="i-heroicons-users" class="text-4xl mb-2" />
-            <p v-if="q">No users found matching "{{ q }}"</p>
-            <p v-else>No users found in the directory.</p>
+            <p v-if="q">No se encontraron usuarios para "{{ q }}"</p>
+            <p v-else>No hay usuarios en el directorio.</p>
           </div>
         </template>
       </UTable>
@@ -389,20 +397,25 @@ const roleFilter = ['Alpha', 'Delta']
 
       <div v-else-if="paginatedRows.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-500">
         <UIcon name="i-heroicons-users" class="text-4xl mb-2" />
-        <p v-if="q">No users found matching "{{ q }}"</p>
-        <p v-else>No users found in the directory.</p>
+        <p v-if="q">No se encontraron usuarios para "{{ q }}"</p>
+        <p v-else>No hay usuarios en el directorio.</p>
       </div>
 
       <div v-else class="flex flex-col gap-3">
         <UCard v-for="user in paginatedRows" :key="user._id" class="w-full">
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
+              <span
+                class="w-2 h-2 rounded-full shrink-0"
+                :class="stateDotClass[userEngagement(user).state]"
+                :title="userEngagement(user).label"
+              />
               <UAvatar :alt="user.username" size="md" :ui="{ rounded: 'rounded-lg' }" class="shrink-0" />
               <div class="min-w-0">
                 <p class="font-semibold text-gray-900 dark:text-white truncate">{{ user.username }}</p>
                 <div class="flex flex-wrap gap-1 mt-1">
                   <template v-for="role in (user.roles || [])" :key="role">
-                    <UBadge v-if="colorMap[role]" :color="colorMap[role]" variant="subtle" size="sm" class="capitalize">
+                    <UBadge v-if="colorMap[role]" :color="colorMap[role]" :variant="badgeVariant" size="sm" class="capitalize">
                       {{ role }}
                     </UBadge>
                   </template>
@@ -420,15 +433,26 @@ const roleFilter = ['Alpha', 'Delta']
           </div>
 
           <div class="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-            <UIcon name="i-heroicons-video-camera" class="text-gray-400 shrink-0" />
-            <span class="text-sm text-gray-500">{{ user.meetingCount }} {{ user.meetingCount === 1 ? 'reunión' : 'reuniones' }}</span>
-            <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="text-gray-400 shrink-0 ml-1" />
-            <span class="text-sm text-gray-500">{{ user.messageCount ?? 0 }} mensajes</span>
+            <div class="flex items-center gap-1 text-sm text-gray-500">
+              <UIcon name="i-heroicons-video-camera" class="text-gray-400 shrink-0" />
+              <span class="font-semibold text-gray-700 dark:text-gray-300">{{ user.meetingCount ?? 0 }}</span>
+              <span class="text-xs">mtgs</span>
+            </div>
+            <div class="flex items-center gap-1 text-sm text-gray-500">
+              <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="text-gray-400 shrink-0" />
+              <span class="font-semibold text-gray-700 dark:text-gray-300">{{ user.messages30d ?? 0 }}</span>
+              <span class="text-xs">msgs/30d</span>
+            </div>
             <div class="ml-auto">
-              <UBadge v-if="user.lastMeeting" color="primary" variant="subtle" size="sm">
-                {{ new Date(user.lastMeeting).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }}
+              <UBadge
+                v-if="lastActiveDate(user)"
+                :color="userEngagement(user).color"
+                :variant="badgeVariant"
+                size="sm"
+              >
+                {{ formatRelativeTime(lastActiveDate(user)) }}
               </UBadge>
-              <UBadge v-else color="error" variant="subtle" size="sm">Sin reuniones</UBadge>
+              <UBadge v-else color="neutral" :variant="badgeVariant" size="sm">Nunca</UBadge>
             </div>
           </div>
         </UCard>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const badgeVariant = useBadgeVariant()
+
 useSeoMeta({
   title: 'Dashboard - STC Control',
   description: 'Panel de control del Stock Trading Club. Estadísticas, actividad reciente y estado del sistema.',
@@ -79,19 +81,12 @@ const periodLabels: Record<Period, string> = {
   monthly: 'Mensual',
 }
 
-// Read the actual primary color from CSS so Chart.js canvas can use it
-const primaryRgb = ref('99, 102, 241')
+const colorMode = useColorMode()
 
-onMounted(() => {
-  const el = document.createElement('span')
-  el.className = 'bg-primary-500'
-  el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
-  document.body.appendChild(el)
-  const bg = getComputedStyle(el).backgroundColor
-  document.body.removeChild(el)
-  const match = bg.match(/\d+/g)
-  if (match) primaryRgb.value = `${match[0]}, ${match[1]}, ${match[2]}`
-})
+// Primary RGB per mode — matches CSS variables in main.css
+const primaryRgb = computed(() =>
+  colorMode.value === 'dark' ? '221, 170, 51' : '199, 94, 48'
+)
 
 const chartData = computed(() => {
   const entries = stats.value || []
@@ -103,7 +98,6 @@ const chartData = computed(() => {
       borderColor: `rgb(${rgb})`,
       borderWidth: 2,
       fill: true,
-      // Gradient fill — top: primary at ~20% opacity → bottom: transparent (mirrors Nuxt UI "subtle" badge)
       backgroundColor: (context: any) => {
         const chart = context.chart
         const { ctx, chartArea } = chart
@@ -122,29 +116,34 @@ const chartData = computed(() => {
   }
 })
 
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      callbacks: {
-        label: (ctx: any) => ` ${ctx.parsed.y} registro${ctx.parsed.y !== 1 ? 's' : ''}`,
+const chartOptions = computed(() => {
+  const isDark = colorMode.value === 'dark'
+  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
+  const tickColor = isDark ? '#9ca3af' : '#6b7280'
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx: any) => ` ${ctx.parsed.y} registro${ctx.parsed.y !== 1 ? 's' : ''}`,
+        },
       },
     },
-  },
-  scales: {
-    x: {
-      grid: { color: 'rgba(255,255,255,0.05)' },
-      ticks: { color: '#9ca3af', font: { size: 11 } },
+    scales: {
+      x: {
+        grid: { color: gridColor },
+        ticks: { color: tickColor, font: { size: 11 } },
+      },
+      y: {
+        grid: { color: gridColor },
+        ticks: { color: tickColor, font: { size: 11 }, precision: 0 },
+        beginAtZero: true,
+      },
     },
-    y: {
-      grid: { color: 'rgba(255,255,255,0.05)' },
-      ticks: { color: '#9ca3af', font: { size: 11 }, precision: 0 },
-      beginAtZero: true,
-    },
-  },
-}
+  }
+})
 
 const quickStats = computed(() => [
   {
@@ -225,7 +224,7 @@ function formatDateOnly(date: string | Date) {
   <div v-else class="space-y-8">
     <!-- Quick Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <UCard v-for="stat in quickStats" :key="stat.label" class="bg-neutral-900/50 border-neutral-800">
+      <UCard v-for="stat in quickStats" :key="stat.label" class="dark:bg-neutral-900/50 dark:border-neutral-800">
         <div class="flex items-center gap-4">
           <div :class="`p-3 rounded-lg ${stat.color} bg-opacity-10`">
             <UIcon :name="stat.icon" :class="`w-6 h-6 ${stat.color}`"/>
@@ -240,10 +239,10 @@ function formatDateOnly(date: string | Date) {
     </div>
 
     <!-- Registration Chart -->
-    <UCard class="bg-neutral-900/50 border-neutral-800">
+    <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
       <template #header>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 class="font-semibold text-neutral-200">Registros por período</h3>
+          <h3 class="font-semibold text-neutral-800 dark:text-neutral-200">Registros por período</h3>
           <div class="flex flex-wrap items-end gap-3">
             <!-- Grouping toggles -->
             <div class="flex gap-1">
@@ -259,7 +258,7 @@ function formatDateOnly(date: string | Date) {
               </UButton>
             </div>
 
-            <div class="h-4 w-px bg-neutral-700 hidden sm:block self-center" />
+            <div class="h-4 w-px bg-cream-400 dark:bg-neutral-700 hidden sm:block self-center" />
 
             <!-- Date range pickers -->
             <div class="flex items-end gap-2">
@@ -300,12 +299,12 @@ function formatDateOnly(date: string | Date) {
 
     <!-- Bot Health & Performance -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <UCard class="bg-neutral-900/50 border-neutral-800">
+      <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
         <template #header>
-          <h3 class="font-semibold text-neutral-200">Estado del Sistema</h3>
+          <h3 class="font-semibold text-neutral-800 dark:text-neutral-200">Estado del Sistema</h3>
         </template>
         <div class="space-y-4">
-          <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-800/50">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-cream-300/50 dark:bg-neutral-800/50">
             <div class="flex items-center gap-3">
               <UIcon name="i-heroicons-clock-20-solid" class="text-primary-500"/>
               <span class="text-sm">Tiempo Activo</span>
@@ -313,7 +312,7 @@ function formatDateOnly(date: string | Date) {
             <USkeleton v-if="statusPending" class="h-4 w-16"/>
             <span v-else class="text-sm font-mono">{{ formatUptime(botStatus?.uptime) }}</span>
           </div>
-          <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-800/50">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-cream-300/50 dark:bg-neutral-800/50">
             <div class="flex items-center gap-3">
               <UIcon name="i-heroicons-bolt-20-solid" class="text-primary-500"/>
               <span class="text-sm">Conexión Discord</span>
@@ -323,7 +322,7 @@ function formatDateOnly(date: string | Date) {
                 botStatus?.discord === 'Connected' ? 'Conectado' : 'Desconectado'
               }}</span>
           </div>
-          <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-800/50">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-cream-300/50 dark:bg-neutral-800/50">
             <div class="flex items-center gap-3">
               <UIcon name="i-heroicons-signal-20-solid" class="text-primary-500"/>
               <span class="text-sm">Servicio</span>
@@ -338,17 +337,17 @@ function formatDateOnly(date: string | Date) {
     </div>
 
     <!-- Últimas Actividades -->
-    <UCard class="bg-neutral-900/50 border-neutral-800">
+    <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
       <template #header>
         <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-neutral-200">Actividad Reciente</h3>
+          <h3 class="font-semibold text-neutral-800 dark:text-neutral-200">Actividad Reciente</h3>
           <UButton to="/meetings" color="neutral" variant="ghost" size="sm" icon="i-heroicons-arrow-right-20-solid">Ver
             Todo
           </UButton>
         </div>
       </template>
 
-      <div class="divide-y divide-neutral-800">
+      <div class="divide-y divide-cream-400 dark:divide-neutral-800">
         <div v-if="logsPending" class="space-y-4 py-4">
           <div v-for="i in 3" :key="i" class="flex items-center gap-4">
             <USkeleton class="h-10 w-10 rounded-lg"/>
@@ -373,7 +372,7 @@ function formatDateOnly(date: string | Date) {
                   size="sm"
                   :ui="{ rounded: 'rounded-lg' }"
               />
-              <div v-else class="p-2 rounded-lg bg-neutral-800 text-neutral-500">
+              <div v-else class="p-2 rounded-lg bg-cream-300 dark:bg-neutral-800 text-neutral-500">
                 <UIcon name="i-heroicons-user"/>
               </div>
               <div>
@@ -383,11 +382,11 @@ function formatDateOnly(date: string | Date) {
                     }}</span>
                   <span class="text-primary-500" v-else>Alguien</span>
                   <span class="text-neutral-400"> se registró para </span>
-                  <span class="text-neutral-200 font-semibold">{{ log.zoomLogId?.name || log.zoomLogId?.meetingId || 'un meeting' }}</span>
-                  <UBadge v-if="(log.count ?? 1) > 1" variant="subtle" color="warning" size="xs" class="ml-1 font-mono">
+                  <span class="text-neutral-800 dark:text-neutral-200 font-semibold">{{ log.zoomLogId?.name || log.zoomLogId?.meetingId || 'un meeting' }}</span>
+                  <UBadge v-if="(log.count ?? 1) > 1" :variant="badgeVariant" color="warning" size="xs" class="ml-1 font-mono">
                     {{ log.count }}x
                   </UBadge>
-                  <UBadge v-if="log.zoomLogId?.occurredAt" variant="subtle" color="primary" size="xs" class="ml-1">
+                  <UBadge v-if="log.zoomLogId?.occurredAt" :variant="badgeVariant" color="primary" size="xs" class="ml-1">
                     {{ formatDateOnly(log.zoomLogId.occurredAt) }}
                   </UBadge>
                 </p>

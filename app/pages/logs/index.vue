@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const badgeVariant = useBadgeVariant()
 useSeoMeta({
   title: 'Logs - STC Control',
   description: 'Historial detallado de todas las acciones del sistema y registros de usuarios.',
@@ -72,7 +73,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
     </div>
 
     <!-- Skeleton -->
-    <UCard v-if="pending" class="bg-neutral-900/50 border-neutral-800">
+    <UCard v-if="pending" class="dark:bg-neutral-900/50 dark:border-neutral-800">
       <div class="space-y-4">
         <div v-for="i in 10" :key="i" class="flex items-center gap-4">
           <USkeleton class="h-8 w-8 rounded-lg shrink-0" />
@@ -106,7 +107,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
           <UCard
             v-for="log in paginatedLogs"
             :key="log._id"
-            class="bg-neutral-900/50 border-neutral-800"
+            class="dark:bg-neutral-900/50 dark:border-neutral-800"
           >
             <div class="flex items-start gap-3">
               <UAvatar
@@ -116,7 +117,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
                 :ui="{ rounded: 'rounded-lg' }"
                 class="shrink-0 mt-0.5"
               />
-              <div v-else class="p-2 rounded-lg bg-neutral-800 text-neutral-500 shrink-0 mt-0.5">
+              <div v-else class="p-2 rounded-lg bg-cream-300 dark:bg-neutral-800 text-neutral-500 shrink-0 mt-0.5">
                 <UIcon name="i-heroicons-user" class="w-4 h-4" />
               </div>
 
@@ -129,7 +130,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
                     <UBadge
                       v-if="logTypeMap[type]"
                       :color="logTypeMap[type].color"
-                      variant="subtle"
+                      :variant="badgeVariant"
                       size="xs"
                       class="flex items-center gap-1"
                     >
@@ -137,7 +138,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
                       {{ logTypeMap[type].label }}
                     </UBadge>
                   </template>
-                  <UBadge v-if="(log.count ?? 1) > 1" color="warning" variant="subtle" size="xs" class="font-mono">
+                  <UBadge v-if="(log.count ?? 1) > 1" color="warning" :variant="badgeVariant" size="xs" class="font-mono">
                     {{ log.count }}x
                   </UBadge>
                 </div>
@@ -183,7 +184,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
       </div>
 
       <!-- ── DESKTOP table (≥ md) ── -->
-      <UCard class="hidden md:block bg-neutral-900/50 border-neutral-800">
+      <UCard class="hidden md:block dark: border-neutral-800">
         <UTable :data="paginatedLogs" :columns="columns" class="w-full">
 
           <template #userId-cell="{ row }">
@@ -193,7 +194,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
                 :alt="row.original.userId.username"
                 size="xs"
               />
-              <div v-else class="p-1.5 sm:p-2 rounded-lg bg-neutral-800 text-neutral-500">
+              <div v-else class="p-1.5 sm:p-2 rounded-lg bg-cream-300 dark:bg-neutral-800 text-neutral-500">
                 <UIcon name="i-heroicons-user" class="w-3.5 h-3.5 sm:w-5 sm:h-5" />
               </div>
               <div class="flex flex-col min-w-0">
@@ -213,14 +214,14 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
                 <UBadge
                   v-if="logTypeMap[type]"
                   :color="logTypeMap[type].color"
-                  variant="subtle"
+                  :variant="badgeVariant"
                   size="sm"
                   class="flex items-center gap-1"
                 >
                   <UIcon :name="logTypeMap[type].icon" class="w-3 h-3" />
                   {{ logTypeMap[type].label }}
                 </UBadge>
-                <UBadge v-else color="neutral" variant="subtle" size="sm">{{ type }}</UBadge>
+                <UBadge v-else color="neutral" :variant="badgeVariant" size="sm">{{ type }}</UBadge>
               </template>
             </div>
           </template>

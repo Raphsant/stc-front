@@ -25,6 +25,13 @@ export default defineEventHandler(async (event) => {
             }
             : '$meetings'
 
+        const now = new Date()
+        const last30From = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() - 29
+        ))
+
         return await DiscordUser.aggregate([
             {
                 $lookup: {
@@ -35,6 +42,27 @@ export default defineEventHandler(async (event) => {
                 }
             },
             {
+                $lookup: {
+                    from: 'messageActivity',
+                    let: { userId: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$userId', '$$userId'] } } },
+                        {
+                            $group: {
+                                _id: '$userId',
+                                lastMessageAt: { $max: '$lastMessageAt' },
+                                messages30d: {
+                                    $sum: {
+                                        $cond: [{ $gte: ['$date', last30From] }, '$count', 0]
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    as: 'activity'
+                }
+            },
+            {
                 $project: {
                     _id: 1,
                     username: 1,
@@ -42,7 +70,10 @@ export default defineEventHandler(async (event) => {
                     previousUsernames: 1,
                     messageCount: 1,
                     meetingCount: { $size: filteredMeetings },
-                    lastMeeting: { $max: '$meetings.occurredAt' }
+                    lastMeeting: { $max: '$meetings.occurredAt' },
+                    lastMeetingAt: { $max: '$meetings.occurredAt' },
+                    messages30d: { $ifNull: [{ $arrayElemAt: ['$activity.messages30d', 0] }, 0] },
+                    lastMessageAt: { $arrayElemAt: ['$activity.lastMessageAt', 0] }
                 }
             },
             { $sort: { meetingCount: -1, username: 1 } }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const badgeVariant = useBadgeVariant()
+
 useSeoMeta({
   title: 'Estado del Sistema - STC Control',
   description: 'Estado en tiempo real del bot de Discord y los servicios del Stock Trading Club.',
@@ -68,7 +70,7 @@ onMounted(() => {
         <template #header>
           <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-gray-500 uppercase tracking-wider">Bot Core</span>
-            <UBadge :color="status.status === 'UP' ? 'green' : 'red'" variant="subtle" size="lg" class="capitalize">
+            <UBadge :color="status.status === 'UP' ? 'green' : 'red'" :variant="badgeVariant" size="lg" class="capitalize">
               {{ status.status }}
             </UBadge>
           </div>

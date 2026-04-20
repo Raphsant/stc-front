@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const badgeVariant = useBadgeVariant()
 const route = useRoute()
 const userId = computed(() => route.query.userId as string)
 
@@ -75,12 +76,12 @@ watch(userId, () => refresh())
 <template>
   <div class="p-4 sm:p-6">
     <div class="mb-6 sm:mb-8">
-      <h1 class="text-2xl sm:text-3xl font-bold text-white">
+      <h1 class="text-2xl sm:text-3xl font-bold  dark:text-white">
         {{ userId ? 'Meetings del Usuario' : 'Registro de Meetings' }}
       </h1>
       <p v-if="userId" class="text-neutral-400 mt-1 flex flex-wrap items-center gap-2 text-sm">
         Filtrando por usuario:
-        <UBadge variant="subtle" size="sm" color="primary">{{ userId }}</UBadge>
+        <UBadge :variant="badgeVariant" size="sm" color="primary">{{ userId }}</UBadge>
         <UButton to="/meetings" icon="i-heroicons-x-mark" color="neutral" variant="ghost" size="xs" label="Remover filtro" />
       </p>
     </div>
@@ -96,7 +97,7 @@ watch(userId, () => refresh())
     </div>
 
     <!-- Skeleton -->
-    <UCard v-if="pending" class="bg-neutral-900/50 border-neutral-800">
+    <UCard v-if="pending" class="dark:bg-neutral-900/50 dark:border-neutral-800">
       <div class="space-y-3">
         <div v-for="i in 6" :key="i" class="flex items-center gap-3 p-2">
           <USkeleton class="h-4 w-4 rounded shrink-0" />
@@ -110,18 +111,18 @@ watch(userId, () => refresh())
     </UCard>
 
     <!-- Grouped list -->
-    <UCard v-else class="bg-neutral-900/50 border-neutral-800 overflow-hidden p-0">
+    <UCard v-else class="dark:bg-neutral-900/50 dark:border-neutral-800 overflow-hidden p-0">
       <div v-if="!grouped.length" class="flex flex-col items-center justify-center py-12 text-neutral-500">
         <UIcon name="i-heroicons-inbox" class="w-10 h-10 mb-2" />
         <p>No se encontraron meetings.</p>
       </div>
 
-      <div v-else class="divide-y divide-neutral-800">
+      <div v-else class="divide-y divide-cream-400 dark:divide-neutral-800">
         <div v-for="group in grouped" :key="group.meetingId">
 
           <!-- Group header -->
           <button
-            class="w-full flex items-center gap-3 px-4 py-4 hover:bg-neutral-800/40 transition-colors text-left"
+            class="w-full flex items-center gap-3 px-4 py-4 hover:bg-cream-300/40 dark:hover:bg-neutral-800/40 transition-colors text-left"
             @click="toggle(group.meetingId)"
           >
             <UIcon
@@ -132,7 +133,7 @@ watch(userId, () => refresh())
 
             <!-- Name + mobile meta -->
             <div class="flex-1 min-w-0">
-              <span class="font-medium text-neutral-100 truncate block">{{ group.name }}</span>
+              <span class="font-medium text-neutral-900 dark:text-neutral-100 truncate block">{{ group.name }}</span>
               <!-- Mobile-only secondary line -->
               <div class="flex items-center gap-2 mt-0.5 sm:hidden">
                 <span class="text-xs text-neutral-500">{{ formatDateShort(group.occurrences[0].occurredAt) }}</span>
@@ -147,29 +148,29 @@ watch(userId, () => refresh())
                 <UIcon name="i-heroicons-users" class="w-5 h-5" />
                 <span>{{ uniqueParticipants(group.occurrences) }}</span>
               </div>
-              <span class="text-xs text-neutral-300">
+              <span class="text-xs text-neutral-600 dark:text-neutral-300">
                 Última: {{ formatDateShort(group.occurrences[0].occurredAt) }}
               </span>
             </div>
 
-            <UBadge color="primary" variant="subtle" size="sm" class="shrink-0">
+            <UBadge color="primary" :variant="badgeVariant" size="sm" class="shrink-0">
               {{ group.occurrences.length }} sesión{{ group.occurrences.length !== 1 ? 'es' : '' }}
             </UBadge>
           </button>
 
           <!-- Occurrences -->
-          <div v-if="expanded.has(group.meetingId)" class="bg-neutral-950/60 border-t border-neutral-800/60">
+          <div v-if="expanded.has(group.meetingId)" class="bg-cream-100/60 dark:bg-neutral-950/60 border-t border-cream-400/60 dark:border-neutral-800/60">
             <div
               v-for="occ in group.occurrences"
               :key="occ._id"
-              class="flex items-center gap-3 px-4 sm:px-8 py-3 border-b border-neutral-800/30 last:border-0"
+              class="flex items-center gap-3 px-4 sm:px-8 py-3 border-b border-cream-400/30 dark:border-neutral-800/30 last:border-0"
             >
               <!-- Indent line -->
-              <div class="w-px h-6 bg-neutral-700 shrink-0 hidden sm:block" />
+              <div class="w-px h-6 bg-cream-400 dark:bg-neutral-700 shrink-0 hidden sm:block" />
 
               <!-- Date info -->
               <div class="flex-1 min-w-0">
-                <p class="text-sm text-neutral-200 font-medium capitalize truncate">
+                <p class="text-sm text-neutral-800 dark:text-neutral-200 font-medium capitalize truncate">
                   {{ formatDate(occ.occurredAt) }}
                 </p>
                 <div class="flex items-center gap-1.5 mt-0.5 text-sm ">
@@ -182,7 +183,7 @@ watch(userId, () => refresh())
               <UButton
                 :to="`/meetings/${occ._id}`"
                 color="primary"
-                variant="subtle"
+                :variant="badgeVariant"
                 size="xs"
                 icon="i-heroicons-arrow-top-right-on-square"
                 label="Ver detalles"

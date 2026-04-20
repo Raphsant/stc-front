@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
             },
             {
                 $addFields: {
-                    meetingCount: { $size: '$meetings' }
+                    meetingCount: { $size: '$meetings' },
+                    lastMeetingAt: { $max: '$meetings.occurredAt' }
                 }
             },
             {

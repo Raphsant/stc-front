@@ -24,7 +24,7 @@ const { data: entries } = await useAsyncData('changelog', () =>
 
     <div v-else class="relative">
       <!-- Timeline line -->
-      <div class="absolute left-[7px] top-2 bottom-2 w-px bg-neutral-800 hidden sm:block" />
+      <div class="absolute left-[7px] top-2 bottom-2 w-px bg-cream-400 dark:bg-neutral-800 hidden sm:block" />
 
       <div class="space-y-8">
         <div
@@ -33,15 +33,15 @@ const { data: entries } = await useAsyncData('changelog', () =>
           class="sm:pl-10 relative"
         >
           <!-- Timeline dot -->
-          <div class="absolute left-0 top-2 w-3.5 h-3.5 rounded-full bg-primary-500 ring-4 ring-neutral-950 hidden sm:block" />
+          <div class="absolute left-0 top-2 w-3.5 h-3.5 rounded-full bg-primary-500 ring-4 ring-cream-100 dark:ring-neutral-950 hidden sm:block" />
 
-          <UCard class="bg-neutral-900/50 border-neutral-800">
+          <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
             <template #header>
               <div class="flex flex-wrap items-center gap-3">
                 <UBadge color="primary" variant="solid" class="font-mono text-sm px-3 py-1">
                   v{{ entry.version }}
                 </UBadge>
-                <span v-if="entry.title" class="font-semibold text-neutral-100 text-base">
+                <span v-if="entry.title" class="font-semibold text-neutral-900 dark:text-neutral-100 text-base">
                   {{ entry.title }}
                 </span>
                 <span class="ml-auto flex items-center gap-1.5 text-xs text-neutral-500 font-medium">
@@ -51,12 +51,12 @@ const { data: entries } = await useAsyncData('changelog', () =>
               </div>
             </template>
 
-            <div class="prose prose-invert prose-sm max-w-none
-              prose-headings:text-neutral-200 prose-headings:font-semibold
+            <div class="prose dark:prose-invert prose-sm max-w-none
+              dark:prose-headings:text-neutral-200 prose-headings:font-semibold
               prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2 prose-h2:first:mt-0
               prose-ul:my-1 prose-li:my-0.5
-              prose-li:text-neutral-300 prose-p:text-neutral-300
-              prose-strong:text-neutral-100">
+              dark:prose-li:text-neutral-300 dark:prose-p:text-neutral-300
+              dark:prose-strong:text-neutral-100">
               <ContentRenderer :value="entry" />
             </div>
           </UCard>

@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-neutral-950 text-neutral-50 flex flex-col md:flex-row">
+  <div class="min-h-screen bg-cream-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50 flex flex-col md:flex-row">
     <!-- Sidebar for Desktop -->
-    <aside class="hidden md:flex w-64 flex-col bg-neutral-900 border-r border-neutral-800">
+    <aside class="hidden md:flex w-64 flex-col bg-cream-200 dark:bg-neutral-900 border-r border-cream-400 dark:border-neutral-800">
       <div class="p-6">
         <div class="flex items-center gap-2 mb-8">
           <UIcon name="i-heroicons-bolt-20-solid" class="w-8 h-8 text-primary-500" />
@@ -24,12 +24,12 @@
         </nav>
       </div>
 
-      <div class="mt-auto p-6 border-t border-neutral-800">
+      <div class="mt-auto p-6 border-t border-cream-400 dark:border-neutral-800">
         <div class="flex items-center gap-3">
           <UAvatar :alt="session.user?.username" size="sm" />
           <div class="flex flex-col overflow-hidden flex-1">
             <span class="text-sm font-medium truncate">{{ session.user?.username }}</span>
-            <span class="text-xs text-neutral-400 truncate text-primary-500/80">Admin</span>
+            <span class="text-xs text-neutral-500 dark:text-neutral-400 truncate text-primary-500/80">Admin</span>
           </div>
           <UButton
             icon="i-heroicons-arrow-right-on-rectangle-20-solid"
@@ -44,7 +44,7 @@
     </aside>
 
     <!-- Mobile Header -->
-    <header class="md:hidden flex items-center justify-between p-4 bg-neutral-900 border-b border-neutral-800">
+    <header class="md:hidden flex items-center justify-between p-4 bg-cream-200 dark:bg-neutral-900 border-b border-cream-400 dark:border-neutral-800">
       <div class="flex items-center gap-2">
         <UIcon name="i-heroicons-bolt-20-solid" class="w-6 h-6 text-primary-500" />
         <span class="font-bold">STC</span>
@@ -76,12 +76,12 @@
             />
           </div>
 
-          <div class="border-t border-neutral-800 pt-4 mt-4">
+          <div class="border-t border-cream-400 dark:border-neutral-800 pt-4 mt-4">
             <div class="flex items-center gap-3">
               <UAvatar :alt="session.user?.username" size="sm" />
               <div class="flex flex-col overflow-hidden flex-1">
                 <span class="text-sm font-medium truncate">{{ session.user?.username }}</span>
-                <span class="text-xs text-neutral-400 text-primary-500/80">Admin</span>
+                <span class="text-xs text-neutral-500 dark:text-neutral-400 text-primary-500/80">Admin</span>
               </div>
               <UButton
                 icon="i-heroicons-arrow-right-on-rectangle-20-solid"
@@ -100,10 +100,11 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col h-screen overflow-hidden">
       <!-- Top Bar -->
-      <header class="hidden md:flex h-16 items-center justify-between px-8 bg-neutral-900/50 backdrop-blur-sm border-b border-neutral-800">
+      <header class="hidden md:flex h-16 items-center justify-between px-8 bg-cream-200/50 dark:bg-neutral-900/50 backdrop-blur-sm border-b border-cream-400 dark:border-neutral-800">
         <h1 class="text-lg font-semibold">{{ currentRouteName }}</h1>
         <div class="flex items-center gap-4">
-          <UBadge color="success" variant="subtle" class="font-mono">v0.1.1-beta</UBadge>
+          <UBadge color="success" variant="soft" class="font-mono">v0.1.1-beta</UBadge>
+          <UColorModeButton color="neutral" variant="ghost" />
           <UButton icon="i-heroicons-bell-20-solid" color="neutral" variant="ghost" />
         </div>
       </header>
@@ -111,7 +112,7 @@
       <!-- Page Content -->
       <div class="flex-1 overflow-y-auto p-4 md:p-8">
         <slot />
-        <footer class="mt-12 pt-4 border-t border-neutral-800 text-center text-xs text-neutral-600">
+        <footer class="mt-12 pt-4 border-t border-cream-400 dark:border-neutral-800 text-center text-xs text-neutral-500 dark:text-neutral-600">
           Made by Sunny for Stock Trading Club
         </footer>
       </div>

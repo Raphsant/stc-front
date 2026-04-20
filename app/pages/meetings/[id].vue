@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const badgeVariant = useBadgeVariant()
 const route  = useRoute()
 const toast  = useToast()
 
@@ -121,7 +122,7 @@ function formatDate(date: string) {
                         <h1 class="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
                             {{ meeting.name }}
                         </h1>
-                        <UBadge variant="subtle">{{ meeting.meetingId }}</UBadge>
+                        <UBadge :variant="badgeVariant">{{ meeting.meetingId }}</UBadge>
                         <p class="text-gray-500 flex items-center gap-2">
                             <UIcon name="i-heroicons-calendar" />
                             {{ formatDate(meeting.occurredAt) }}
@@ -167,7 +168,7 @@ function formatDate(date: string) {
                         <template #roles-cell="{ row }">
                             <div class="flex flex-wrap gap-1.5">
                                 <template v-for="role in (row.original.roles || [])" :key="role">
-                                    <UBadge v-if="colorMap[role]" :color="colorMap[role]" variant="subtle" size="sm" class="capitalize">
+                                    <UBadge v-if="colorMap[role]" :color="colorMap[role]" :variant="badgeVariant" size="sm" class="capitalize">
                                         {{ role }}
                                     </UBadge>
                                 </template>

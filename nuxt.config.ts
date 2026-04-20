@@ -16,7 +16,8 @@ export default defineNuxtConfig({
     modules: ['@nuxt/ui', 'nuxt-mongoose', 'nuxt-auth-utils', '@nuxt/content'],
     css: ['~/assets/css/main.css'],
     colorMode: {
-        preference: 'dark'
+        preference: 'dark',
+        classSuffix: ''
     }, mongoose: {
         uri: process.env.MONGODB_URI,
         options: {},

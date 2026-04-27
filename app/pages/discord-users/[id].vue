@@ -5,6 +5,7 @@ const userId = route.params.id
 
 const { data: user, pending, error } = useFetch(`/api/discord-users/${userId}`)
 const { data: activity, pending: activityPending } = useFetch(`/api/discord-users/${userId}/activity`)
+const { data: watched, pending: watchedPending } = useFetch(`/api/discord-users/${userId}/watched`)
 
 useSeoMeta({
   title: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
@@ -118,6 +119,17 @@ const topChannels = computed(() => {
 const topChannelMax = computed(() => {
   return Math.max(1, ...topChannels.value.map((c: any) => c.count))
 })
+
+function formatVideoTitle(key: string): string {
+  if (!key) return 'Vídeo sin título'
+  const last = key.split('/').pop() || key
+  return last.replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[-_]+/g, ' ').trim() || key
+}
+
+function videoProgressPct(v: { timestamp: number, duration: number }): number {
+  if (!v.duration || v.duration <= 0) return 0
+  return Math.min(100, Math.max(0, Math.round((v.timestamp / v.duration) * 100)))
+}
 </script>
 
 <template>
@@ -305,6 +317,64 @@ const topChannelMax = computed(() => {
             Ver historial completo
           </UButton>
         </div>
+      </UCard>
+
+      <!-- Watched Videos Card -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2 font-bold">
+              <UIcon name="i-heroicons-play-circle" class="text-primary" />
+              Vídeos vistos
+            </div>
+            <UBadge v-if="!watchedPending" color="neutral" :variant="badgeVariant" size="sm">
+              {{ watched?.total ?? 0 }} {{ watched?.total === 1 ? 'vídeo' : 'vídeos' }}
+            </UBadge>
+          </div>
+        </template>
+
+        <div v-if="watchedPending" class="space-y-3">
+          <USkeleton v-for="n in 3" :key="n" class="h-14 w-full" />
+        </div>
+        <div
+          v-else-if="!watched?.recent?.length"
+          class="text-center py-6 text-sm text-gray-400"
+        >
+          Aún no ha visto ningún vídeo.
+        </div>
+        <ul v-else class="space-y-2">
+          <li
+            v-for="video in watched.recent"
+            :key="video._id"
+            class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
+          >
+            <UIcon name="i-heroicons-film" class="text-primary text-xl shrink-0 hidden sm:block" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-film" class="text-primary text-base shrink-0 sm:hidden" />
+                <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {{ formatVideoTitle(video.videoKey) }}
+                </div>
+              </div>
+              <div class="flex items-center gap-2 mt-1.5">
+                <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    class="h-full bg-primary transition-all"
+                    :style="{ width: `${videoProgressPct(video)}%` }"
+                  />
+                </div>
+                <span class="text-xs text-gray-500 tabular-nums shrink-0">
+                  {{ videoProgressPct(video) }}%
+                </span>
+              </div>
+            </div>
+            <UTooltip :text="new Date(video.updatedAt).toLocaleString('es-ES')">
+              <div class="text-xs text-gray-500 sm:text-right shrink-0 sm:min-w-[6rem]">
+                {{ formatRelativeTime(video.updatedAt) }}
+              </div>
+            </UTooltip>
+          </li>
+        </ul>
       </UCard>
 
       <!-- Technical Info Card -->

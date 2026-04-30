@@ -118,6 +118,7 @@ const columns = [
   { accessorKey: 'username', header: 'Usuario' },
   { accessorKey: 'roles', header: 'Roles' },
   { accessorKey: 'activity', header: 'Actividad' },
+  { accessorKey: 'contactedBy', header: 'Contactado por' },
   { accessorKey: 'lastActive', header: 'Última actividad' },
   { id: 'actions', header: '' },
 ]
@@ -339,6 +340,39 @@ const roleFilter = ['Alpha', 'Delta']
           </div>
         </template>
 
+        <template #contactedBy-cell="{ row }">
+          <div v-if="row.original.contactedBy?.length" class="flex flex-wrap gap-1 max-w-[14rem]">
+            <UBadge
+              v-for="name in row.original.contactedBy.slice(0, 2)"
+              :key="name"
+              color="primary"
+              :variant="badgeVariant"
+              size="sm"
+            >
+              {{ name }}
+            </UBadge>
+            <UPopover v-if="row.original.contactedBy.length > 2" mode="hover">
+              <UBadge color="neutral" variant="soft" size="sm" class="cursor-help">
+                +{{ row.original.contactedBy.length - 2 }}
+              </UBadge>
+              <template #content>
+                <div class="p-2 max-w-xs flex flex-wrap gap-1">
+                  <UBadge
+                    v-for="name in row.original.contactedBy.slice(2)"
+                    :key="name"
+                    color="primary"
+                    :variant="badgeVariant"
+                    size="sm"
+                  >
+                    {{ name }}
+                  </UBadge>
+                </div>
+              </template>
+            </UPopover>
+          </div>
+          <span v-else class="text-xs text-gray-400">—</span>
+        </template>
+
         <template #lastActive-cell="{ row }">
           <UBadge
             v-if="lastActiveDate(row.original)"
@@ -429,6 +463,16 @@ const roleFilter = ['Alpha', 'Delta']
             <div class="flex gap-1 shrink-0">
               <UButton :to="`/discord-users/${user._id}`" icon="i-heroicons-user" color="neutral" variant="ghost" size="sm" />
               <UButton :to="`/meetings?userId=${user._id}`" icon="i-heroicons-calendar-days" color="neutral" variant="ghost" size="sm" />
+            </div>
+          </div>
+
+          <div v-if="user.contactedBy?.length" class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+            <UIcon name="i-heroicons-pencil-square" class="text-gray-400 shrink-0" />
+            <span class="text-xs text-gray-500 shrink-0">Contactado por:</span>
+            <div class="flex flex-wrap gap-1 min-w-0">
+              <UBadge v-for="name in user.contactedBy" :key="name" color="primary" :variant="badgeVariant" size="sm">
+                {{ name }}
+              </UBadge>
             </div>
           </div>
 

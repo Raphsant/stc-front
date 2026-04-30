@@ -63,6 +63,23 @@ export default defineEventHandler(async (event) => {
                 }
             },
             {
+                $lookup: {
+                    from: 'bitacoras',
+                    let: { userId: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$discordUserId', '$$userId'] } } },
+                        { $sort: { createdAt: 1 } },
+                        {
+                            $group: {
+                                _id: '$discordUserId',
+                                contactedBy: { $addToSet: '$adminUsername' },
+                            }
+                        }
+                    ],
+                    as: 'journal'
+                }
+            },
+            {
                 $project: {
                     _id: 1,
                     username: 1,
@@ -73,7 +90,8 @@ export default defineEventHandler(async (event) => {
                     lastMeeting: { $max: '$meetings.occurredAt' },
                     lastMeetingAt: { $max: '$meetings.occurredAt' },
                     messages30d: { $ifNull: [{ $arrayElemAt: ['$activity.messages30d', 0] }, 0] },
-                    lastMessageAt: { $arrayElemAt: ['$activity.lastMessageAt', 0] }
+                    lastMessageAt: { $arrayElemAt: ['$activity.lastMessageAt', 0] },
+                    contactedBy: { $ifNull: [{ $arrayElemAt: ['$journal.contactedBy', 0] }, []] }
                 }
             },
             { $sort: { meetingCount: -1, username: 1 } }

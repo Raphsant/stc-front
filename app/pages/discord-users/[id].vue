@@ -2,10 +2,123 @@
 const badgeVariant = useBadgeVariant()
 const route = useRoute()
 const userId = route.params.id
+const toast = useToast()
+const { loggedIn, session } = useUserSession()
 
 const { data: user, pending, error } = useFetch(`/api/discord-users/${userId}`)
 const { data: activity, pending: activityPending } = useFetch(`/api/discord-users/${userId}/activity`)
 const { data: watched, pending: watchedPending } = useFetch(`/api/discord-users/${userId}/watched`)
+const {
+  data: journal,
+  pending: journalPending,
+  refresh: refreshJournal,
+} = useFetch<JournalEntry[]>(`/api/discord-users/${userId}/journal`, { default: () => [] })
+
+interface JournalEntry {
+  _id: string
+  discordUserId: string
+  type: 'text' | 'image'
+  content: string
+  imageUrl?: string | null
+  adminId: string
+  adminUsername: string
+  createdAt: string
+  updatedAt: string
+}
+
+const journalType = ref<'text' | 'image'>('text')
+const journalText = ref('')
+const journalSubmitting = ref(false)
+const journalFile = ref<File | null>(null)
+const journalFileInput = ref<HTMLInputElement | null>(null)
+
+const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+const journalTypeItems = [
+  { value: 'text', label: 'Texto', icon: 'i-heroicons-document-text' },
+  { value: 'image', label: 'Imagen', icon: 'i-heroicons-photo' },
+]
+
+function onFilePick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  if (!file) {
+    journalFile.value = null
+    return
+  }
+  if (!ALLOWED_IMAGE_MIME.includes(file.type)) {
+    toast.add({ title: 'Formato no soportado. Usa PNG, JPG, WebP o GIF.', color: 'warning' })
+    input.value = ''
+    return
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    toast.add({ title: 'La imagen supera el tamaño máximo de 5MB.', color: 'warning' })
+    input.value = ''
+    return
+  }
+  journalFile.value = file
+}
+
+function clearJournalFile() {
+  journalFile.value = null
+  if (journalFileInput.value) journalFileInput.value.value = ''
+}
+
+async function submitJournalEntry() {
+  if (journalSubmitting.value) return
+  journalSubmitting.value = true
+  try {
+    if (journalType.value === 'text') {
+      const content = journalText.value.trim()
+      if (!content) {
+        toast.add({ title: 'Escribe algo antes de guardar.', color: 'warning' })
+        return
+      }
+      await $fetch(`/api/discord-users/${userId}/journal`, {
+        method: 'POST',
+        body: { type: 'text', content },
+      })
+      journalText.value = ''
+    } else {
+      const file = journalFile.value
+      if (!file) {
+        toast.add({ title: 'Selecciona una imagen primero.', color: 'warning' })
+        return
+      }
+      const { uploadUrl, key } = await $fetch<{ uploadUrl: string, key: string }>(
+        `/api/discord-users/${userId}/journal-upload-url`,
+        {
+          method: 'POST',
+          body: { contentType: file.type, size: file.size },
+        },
+      )
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      })
+      if (!putRes.ok) {
+        throw new Error(`Upload failed (${putRes.status})`)
+      }
+      await $fetch(`/api/discord-users/${userId}/journal`, {
+        method: 'POST',
+        body: { type: 'image', content: key },
+      })
+      clearJournalFile()
+    }
+    await refreshJournal()
+    toast.add({ title: 'Entrada añadida a la bitácora.', color: 'success' })
+  } catch (e: any) {
+    toast.add({
+      title: 'No se pudo añadir la entrada.',
+      description: e?.statusMessage || e?.message || '',
+      color: 'error',
+    })
+  } finally {
+    journalSubmitting.value = false
+  }
+}
 
 useSeoMeta({
   title: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
@@ -375,6 +488,183 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
             </UTooltip>
           </li>
         </ul>
+      </UCard>
+
+      <!-- Bitácora (Journal) Card -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-2 font-bold">
+              <UIcon name="i-heroicons-book-open" class="text-primary" />
+              Bitácora
+            </div>
+            <UBadge v-if="!journalPending" color="neutral" :variant="badgeVariant" size="sm">
+              {{ journal?.length ?? 0 }} {{ journal?.length === 1 ? 'entrada' : 'entradas' }}
+            </UBadge>
+          </div>
+        </template>
+
+        <!-- Entry form -->
+        <div v-if="loggedIn" class="mb-6">
+          <div class="flex flex-wrap gap-2 mb-3">
+            <UButton
+              v-for="item in journalTypeItems"
+              :key="item.value"
+              :icon="item.icon"
+              :color="journalType === item.value ? 'primary' : 'neutral'"
+              :variant="journalType === item.value ? 'solid' : 'outline'"
+              size="sm"
+              @click="journalType = item.value as 'text' | 'image'"
+            >
+              {{ item.label }}
+            </UButton>
+          </div>
+
+          <div v-if="journalType === 'text'" class="space-y-3">
+            <UTextarea
+              v-model="journalText"
+              placeholder="Escribe una nota sobre este usuario..."
+              :rows="4"
+              autoresize
+              class="w-full"
+              :ui="{ base: 'w-full' }"
+            />
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <p class="text-xs text-gray-500">
+                Se registrará como
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ session?.user?.username }}</span>
+              </p>
+              <UButton
+                icon="i-heroicons-plus"
+                color="primary"
+                :loading="journalSubmitting"
+                :disabled="!journalText.trim()"
+                @click="submitJournalEntry"
+              >
+                Añadir entrada
+              </UButton>
+            </div>
+          </div>
+          <div v-else class="space-y-3">
+            <input
+              ref="journalFileInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              class="hidden"
+              @change="onFilePick"
+            >
+            <div
+              v-if="!journalFile"
+              class="p-6 rounded-lg bg-gray-50 dark:bg-gray-800/50 border-2 border-dashed border-gray-200 dark:border-gray-700 text-center cursor-pointer hover:border-primary transition-colors"
+              @click="journalFileInput?.click()"
+            >
+              <UIcon name="i-heroicons-cloud-arrow-up" class="text-3xl text-gray-400" />
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                Haz clic para seleccionar una imagen
+              </p>
+              <p class="text-xs text-gray-400 mt-1">
+                PNG, JPG, WebP o GIF · máx. 5MB
+              </p>
+            </div>
+            <div
+              v-else
+              class="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <UIcon name="i-heroicons-photo" class="text-primary text-xl shrink-0" />
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {{ journalFile.name }}
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    {{ (journalFile.size / 1024).toFixed(1) }} KB
+                  </div>
+                </div>
+              </div>
+              <UButton
+                icon="i-heroicons-x-mark"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :disabled="journalSubmitting"
+                @click="clearJournalFile"
+              />
+            </div>
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <p class="text-xs text-gray-500">
+                Se registrará como
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ session?.user?.username }}</span>
+              </p>
+              <UButton
+                icon="i-heroicons-arrow-up-tray"
+                color="primary"
+                :loading="journalSubmitting"
+                :disabled="!journalFile"
+                @click="submitJournalEntry"
+              >
+                Subir imagen
+              </UButton>
+            </div>
+          </div>
+        </div>
+        <div v-else class="mb-6 text-sm text-gray-500 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+          Inicia sesión como administrador para añadir entradas.
+        </div>
+
+        <!-- Timeline -->
+        <div v-if="journalPending" class="space-y-3">
+          <USkeleton v-for="n in 3" :key="n" class="h-16 w-full" />
+        </div>
+        <div
+          v-else-if="!journal?.length"
+          class="text-center py-8 text-sm text-gray-400"
+        >
+          Aún no hay entradas en la bitácora.
+        </div>
+        <ol v-else class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-6">
+          <li
+            v-for="entry in journal"
+            :key="entry._id"
+            class="ml-6"
+          >
+            <span class="absolute -left-[9px] flex items-center justify-center w-4 h-4 rounded-full bg-primary ring-4 ring-white dark:ring-gray-900" />
+            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+              <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <div class="flex items-center gap-2 text-sm">
+                  <UIcon
+                    :name="entry.type === 'image' ? 'i-heroicons-photo' : 'i-heroicons-document-text'"
+                    class="text-primary"
+                  />
+                  <span class="font-bold text-gray-900 dark:text-white">{{ entry.adminUsername }}</span>
+                </div>
+                <UTooltip :text="new Date(entry.createdAt).toLocaleString('es-ES')">
+                  <span class="text-xs text-gray-500">{{ formatRelativeTime(entry.createdAt) }}</span>
+                </UTooltip>
+              </div>
+              <p
+                v-if="entry.type === 'text'"
+                class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words"
+              >
+                {{ entry.content }}
+              </p>
+              <a
+                v-else-if="entry.imageUrl"
+                :href="entry.imageUrl"
+                target="_blank"
+                rel="noopener"
+                class="block"
+              >
+                <img
+                  :src="entry.imageUrl"
+                  :alt="entry.content"
+                  class="max-h-80 w-auto rounded-md border border-gray-200 dark:border-gray-700"
+                  loading="lazy"
+                >
+              </a>
+              <div v-else class="text-xs text-gray-400 italic">Imagen no disponible</div>
+            </div>
+          </li>
+        </ol>
       </UCard>
 
       <!-- Technical Info Card -->

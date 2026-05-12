@@ -6,7 +6,7 @@ export async function ensureMongo() {
     if (mongoose.connection.readyState === 1) return mongoose;
     if (mongoose.connection.readyState === 2 && connectionPromise) return connectionPromise;
 
-    const uri = process.env.MONGODB_URI;
+    const uri = useRuntimeConfig().mongoose?.uri;
     if (!uri) throw createError({ statusCode: 500, statusMessage: "MONGODB_URI missing" });
 
     connectionPromise = mongoose

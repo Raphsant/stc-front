@@ -34,7 +34,7 @@ export default defineNuxtConfig({
         preference: 'dark',
         classSuffix: ''
     }, mongoose: {
-        uri: process.env.MONGODB_URI,
+        uri: '',
         options: {
             bufferCommands: false,
             serverSelectionTimeoutMS: 5000,

@@ -4,17 +4,12 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 let client: S3Client | null = null
 
 function readConfig() {
-    let cfg: any = {}
-    try {
-        cfg = useRuntimeConfig()
-    } catch {
-        cfg = {}
-    }
+    const cfg = useRuntimeConfig()
     return {
-        region: (cfg.awsRegion as string) || process.env.MY_AWS_REGION || '',
-        accessKeyId: (cfg.awsAccessKeyId as string) || process.env.MY_AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: (cfg.awsSecretAccessKey as string) || process.env.MY_AWS_SECRET_ACCESS_KEY || '',
-        bucket: (cfg.s3Bucket as string) || process.env.S3_BUCKET || '',
+        region: (cfg.awsRegion as string) || '',
+        accessKeyId: (cfg.awsAccessKeyId as string) || '',
+        secretAccessKey: (cfg.awsSecretAccessKey as string) || '',
+        bucket: (cfg.s3Bucket as string) || '',
     }
 }
 

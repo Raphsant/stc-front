@@ -22,7 +22,7 @@ export function getEngagementState(
     const daysSince = Math.floor((Date.now() - lastActive) / (1000 * 60 * 60 * 24))
 
     if (daysSince <= 7) return { state: 'active', label: 'Activo', color: 'success', daysSince }
-    if (daysSince <= 30) return { state: 'slipping', label: 'Bajando', color: 'warning', daysSince }
+    if (daysSince <= 30) return { state: 'slipping', label: 'Ausente', color: 'warning', daysSince }
     if (daysSince <= 90) return { state: 'inactive', label: 'Inactivo', color: 'error', daysSince }
     return { state: 'dormant', label: 'Dormido', color: 'neutral', daysSince }
 }

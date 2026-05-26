@@ -23,5 +23,12 @@ export const DiscordUser = defineMongooseModel({
       type: Number,
       default: 0,
     },
+    joinedAt: {
+      type: Date,
+    },
+    removedAt: {
+      type: Date,
+      default: null,
+    },
   },
 })

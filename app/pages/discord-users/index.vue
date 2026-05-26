@@ -22,7 +22,15 @@ const selectedRoles = ref<string[]>([])
 const excludeKnownRoles = ref(false)
 const zeroMeetings = ref(false)
 
-type SortKey = 'recent' | 'meetings' | 'messages30d' | 'lifetime'
+type StatusFilter = 'all' | 'active' | 'removed'
+const statusFilter = ref<StatusFilter>('active')
+const statusOptions: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'active', label: 'Activos' },
+  { key: 'removed', label: 'Eliminados' },
+]
+
+type SortKey = 'recent' | 'meetings' | 'messages30d' | 'lifetime' | 'joinedAt'
 const sortBy = ref<SortKey>('recent')
 const sortDir = ref<'asc' | 'desc'>('desc')
 
@@ -45,6 +53,7 @@ const sortOptions: { key: SortKey; label: string }[] = [
   { key: 'meetings', label: 'Reuniones' },
   { key: 'messages30d', label: 'Mensajes 30d' },
   { key: 'lifetime', label: 'Mensajes total' },
+  { key: 'joinedAt', label: 'Antigüedad' },
 ]
 
 const page = ref(1)
@@ -72,6 +81,9 @@ const filteredRows = computed(() => {
     if (excludeKnownRoles.value && hasKnownRole) return false
     if (zeroMeetings.value && (user.meetingCount ?? 0) !== 0) return false
 
+    if (statusFilter.value === 'active' && user.removedAt) return false
+    if (statusFilter.value === 'removed' && !user.removedAt) return false
+
     const matchesRoles = selectedRoles.value.length === 0 || selectedRoles.value.every(selected =>
       user.roles?.some((role: string) => role.toLowerCase().includes(selected.toLowerCase()))
     )
@@ -90,6 +102,7 @@ function sortValue(user: any, key: SortKey): number {
     case 'meetings': return user.meetingCount ?? 0
     case 'messages30d': return user.messages30d ?? 0
     case 'lifetime': return user.messageCount ?? 0
+    case 'joinedAt': return user.joinedAt ? new Date(user.joinedAt).getTime() : 0
   }
 }
 
@@ -110,7 +123,7 @@ const paginatedRows = computed(() => {
   return sortedRows.value.slice(start, end)
 })
 
-watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, dateFrom, dateTo, sortBy, sortDir], () => {
+watch([q, selectedRoles, excludeKnownRoles, zeroMeetings, statusFilter, dateFrom, dateTo, sortBy, sortDir], () => {
   page.value = 1
 })
 
@@ -219,6 +232,20 @@ const roleFilter = ['Alpha', 'Delta']
           >
             Sin reuniones
           </UButton>
+
+          <div class="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block" />
+
+          <span class="text-sm text-gray-500">Estado:</span>
+          <UButton
+            v-for="opt in statusOptions"
+            :key="opt.key"
+            size="sm"
+            color="neutral"
+            :variant="statusFilter === opt.key ? 'solid' : 'outline'"
+            @click="statusFilter = opt.key"
+          >
+            {{ opt.label }}
+          </UButton>
         </div>
 
         <!-- Right: date range filter -->
@@ -299,7 +326,18 @@ const roleFilter = ['Alpha', 'Delta']
               :title="userEngagement(row.original).label"
             />
             <UAvatar :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
-            <span class="font-medium text-gray-900 dark:text-white">{{ row.original.username }}</span>
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="font-medium text-gray-900 dark:text-white truncate">{{ row.original.username }}</span>
+              <UBadge
+                v-if="row.original.removedAt"
+                color="error"
+                variant="outline"
+                size="sm"
+                icon="i-heroicons-arrow-right-on-rectangle"
+              >
+                Eliminado
+              </UBadge>
+            </div>
           </div>
         </template>
 
@@ -374,14 +412,22 @@ const roleFilter = ['Alpha', 'Delta']
         </template>
 
         <template #lastActive-cell="{ row }">
-          <UBadge
-            v-if="lastActiveDate(row.original)"
-            :color="userEngagement(row.original).color"
-            :variant="badgeVariant"
-          >
-            {{ formatRelativeTime(lastActiveDate(row.original)) }}
-          </UBadge>
-          <UBadge v-else color="neutral" :variant="badgeVariant">Nunca</UBadge>
+          <div class="flex flex-col items-start gap-1">
+            <UBadge
+              v-if="lastActiveDate(row.original)"
+              :color="userEngagement(row.original).color"
+              :variant="badgeVariant"
+            >
+              {{ formatRelativeTime(lastActiveDate(row.original)) }}
+            </UBadge>
+            <UBadge v-else color="neutral" :variant="badgeVariant">Nunca</UBadge>
+            <UTooltip v-if="row.original.joinedAt" :text="new Date(row.original.joinedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })">
+              <span class="text-xs text-gray-400 inline-flex items-center gap-1">
+                <UIcon name="i-heroicons-user-plus" class="text-gray-300 dark:text-gray-600" />
+                Miembro {{ formatRelativeTime(row.original.joinedAt) }}
+              </span>
+            </UTooltip>
+          </div>
         </template>
 
         <template #actions-cell="{ row }">
@@ -446,7 +492,18 @@ const roleFilter = ['Alpha', 'Delta']
               />
               <UAvatar :alt="user.username" size="md" :ui="{ rounded: 'rounded-lg' }" class="shrink-0" />
               <div class="min-w-0">
-                <p class="font-semibold text-gray-900 dark:text-white truncate">{{ user.username }}</p>
+                <div class="flex items-center gap-1.5">
+                  <p class="font-semibold text-gray-900 dark:text-white truncate">{{ user.username }}</p>
+                  <UBadge
+                    v-if="user.removedAt"
+                    color="error"
+                    variant="outline"
+                    size="xs"
+                    icon="i-heroicons-arrow-right-on-rectangle"
+                  >
+                    Eliminado
+                  </UBadge>
+                </div>
                 <div class="flex flex-wrap gap-1 mt-1">
                   <template v-for="role in (user.roles || [])" :key="role">
                     <UBadge v-if="colorMap[role]" :color="colorMap[role]" :variant="badgeVariant" size="sm" class="capitalize">
@@ -487,7 +544,7 @@ const roleFilter = ['Alpha', 'Delta']
               <span class="font-semibold text-gray-700 dark:text-gray-300">{{ user.messages30d ?? 0 }}</span>
               <span class="text-xs">msgs/30d</span>
             </div>
-            <div class="ml-auto">
+            <div class="ml-auto flex flex-col items-end gap-1">
               <UBadge
                 v-if="lastActiveDate(user)"
                 :color="userEngagement(user).color"
@@ -497,6 +554,10 @@ const roleFilter = ['Alpha', 'Delta']
                 {{ formatRelativeTime(lastActiveDate(user)) }}
               </UBadge>
               <UBadge v-else color="neutral" :variant="badgeVariant" size="sm">Nunca</UBadge>
+              <span v-if="user.joinedAt" class="text-[0.7rem] text-gray-400 inline-flex items-center gap-1 leading-none">
+                <UIcon name="i-heroicons-user-plus" class="text-gray-300 dark:text-gray-600" />
+                Miembro {{ formatRelativeTime(user.joinedAt) }}
+              </span>
             </div>
           </div>
         </UCard>

@@ -287,7 +287,30 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
               <UBadge :color="engagement.color" :variant="badgeVariant" size="md">
                 {{ engagement.label }}
               </UBadge>
+              <UBadge
+                v-if="user.removedAt"
+                color="error"
+                variant="outline"
+                size="md"
+                icon="i-heroicons-arrow-right-on-rectangle"
+              >
+                Eliminado
+              </UBadge>
               <UBadge color="neutral" :variant="badgeVariant" size="sm">ID: {{ user._id }}</UBadge>
+            </div>
+            <div v-if="user.joinedAt || user.removedAt" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+              <UTooltip v-if="user.joinedAt" :text="new Date(user.joinedAt).toLocaleString('es-ES')">
+                <span class="flex items-center gap-1">
+                  <UIcon name="i-heroicons-user-plus" class="text-gray-400" />
+                  Miembro {{ formatRelativeTime(user.joinedAt) }}
+                </span>
+              </UTooltip>
+              <UTooltip v-if="user.removedAt" :text="new Date(user.removedAt).toLocaleString('es-ES')">
+                <span class="flex items-center gap-1">
+                  <UIcon name="i-heroicons-arrow-right-on-rectangle" class="text-gray-400" />
+                  Eliminado el {{ formatRelativeTime(user.removedAt) }}
+                </span>
+              </UTooltip>
             </div>
             <div class="mt-4 flex flex-wrap gap-2">
               <UBadge

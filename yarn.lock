@@ -1063,6 +1063,20 @@
     "@floating-ui/utils" "^0.2.11"
     vue-demi ">=0.13.0"
 
+"@iconify-json/heroicons@^1.2.3":
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/@iconify-json/heroicons/-/heroicons-1.2.3.tgz#041fe0d689535dddc51e97c8b692cdff792ac4b2"
+  integrity sha512-n+vmCEgTesRsOpp5AB5ILB6srsgsYK+bieoQBNlafvoEhjVXLq8nIGN4B0v/s4DUfa0dOrjwE/cKJgIKdJXOEg==
+  dependencies:
+    "@iconify/types" "*"
+
+"@iconify-json/lucide@^1.2.109":
+  version "1.2.109"
+  resolved "https://registry.yarnpkg.com/@iconify-json/lucide/-/lucide-1.2.109.tgz#c770ec895df5c9bd13e2b4e88b80ccb9a57d7b5b"
+  integrity sha512-O5arvTVcu95soP3dGWJp/Nl5L5FYmFu2z75sSrQmGzrgrnsCU49t8+ZB7HPq//GRNXpWUoNfDRcs5yR7XMa+zw==
+  dependencies:
+    "@iconify/types" "*"
+
 "@iconify/collections@^1.0.641":
   version "1.0.672"
   resolved "https://registry.yarnpkg.com/@iconify/collections/-/collections-1.0.672.tgz#4604b55d56b265dc62e25e790026b3194de5d6db"

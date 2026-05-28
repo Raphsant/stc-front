@@ -1,4 +1,5 @@
 import { isBitacoraKey } from '../../../utils/s3'
+import { DashBoardLog } from '../../../models/dashboardLog.schema'
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
@@ -36,6 +37,13 @@ export default defineEventHandler(async (event) => {
         content,
         adminId: String((session.user as any).id),
         adminUsername: (session.user as any).username,
+    })
+
+    await DashBoardLog.create({
+        userId: id,
+        adminUsername: (session.user as any).username,
+        logType: ['journal-entry'],
+        occurredAt: new Date(),
     })
 
     return entry.toObject()

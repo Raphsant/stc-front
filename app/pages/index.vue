@@ -46,7 +46,7 @@ useSeoMeta({
 //   }
 // })
 
-const { data: meetings, pending: meetingsPending } = await useFetch('/api/meetings', { lazy: true })
+const { data: meetingCount, pending: meetingsPending } = await useFetch('/api/meetings/count', { lazy: true })
 const {data: botStatus, pending: statusPending} = useBotStatus()
 
 
@@ -162,7 +162,7 @@ const quickStats = computed(() => [
   },
   {
     label: 'Meetings Registrados',
-    value: meetings.value?.length,
+    value: meetingCount.value?.count,
     pending: meetingsPending.value,
     icon: 'i-heroicons-video-camera-20-solid',
     color: 'text-green-500'
@@ -368,6 +368,7 @@ function formatDateOnly(date: string | Date) {
             <div class="flex items-center gap-4">
               <UAvatar
                   v-if="log.userId"
+                  :src="log.userId.avatarUrl ?? undefined"
                   :alt="log.userId.username"
                   size="sm"
                   :ui="{ rounded: 'rounded-lg' }"

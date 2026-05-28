@@ -1,3 +1,5 @@
+import { DashBoardLog } from '#server/models/dashboardLog.schema'
+
 export default defineEventHandler(async (event) => {
     const id   = event.context.params?.id
     const body = await readBody(event)
@@ -17,6 +19,8 @@ export default defineEventHandler(async (event) => {
         })
     }
 
+    const { user: admin } = await getUserSession(event)
+
     try {
         const meeting = await ZoomLog.findById(id)
 
@@ -35,6 +39,15 @@ export default defineEventHandler(async (event) => {
         }
 
         await meeting.save()
+
+        await DashBoardLog.create({
+            ...(action === 'remove' ? { userId } : {}),
+            adminUsername: admin.username,
+            zoomLogId: id,
+            logType: [action === 'remove' ? 'admin-remove' : 'admin-clear'],
+            occurredAt: new Date(),
+        })
+
         return await ZoomLog.findById(id).populate('participants')
 
     } catch (error: any) {

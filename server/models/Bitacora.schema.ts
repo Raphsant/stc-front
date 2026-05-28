@@ -26,6 +26,19 @@ export const Bitacora = defineMongooseModel({
       type: String,
       required: true,
     },
+    markedForDeletion: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    markedForDeletionAt: {
+      type: Date,
+      default: null,
+    },
+    markedForDeletionBy: {
+      type: String,
+      default: null,
+    },
   },
   options: { timestamps: true, collection: 'bitacoras' },
 })

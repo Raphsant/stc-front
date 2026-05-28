@@ -10,13 +10,6 @@ useSeoMeta({
 const dateFrom = ref('')
 const dateTo = ref('')
 
-const { data: users, pending, error } = useFetch('/api/discord-users', {
-  query: computed(() => ({
-    ...(dateFrom.value ? { from: dateFrom.value } : {}),
-    ...(dateTo.value ? { to: dateTo.value } : {}),
-  }))
-})
-
 const q = ref('')
 const selectedRoles = ref<string[]>([])
 const excludeKnownRoles = ref(false)
@@ -33,6 +26,18 @@ const statusOptions: { key: StatusFilter; label: string }[] = [
 type SortKey = 'recent' | 'meetings' | 'messages30d' | 'lifetime' | 'joinedAt'
 const sortBy = ref<SortKey>('recent')
 const sortDir = ref<'asc' | 'desc'>('desc')
+
+const { data: users, pending, error } = useFetch('/api/discord-users', {
+  query: computed(() => ({
+    ...(dateFrom.value ? { from: dateFrom.value } : {}),
+    ...(dateTo.value ? { to: dateTo.value } : {}),
+    ...(q.value ? { q: q.value } : {}),
+    ...(statusFilter.value !== 'all' ? { status: statusFilter.value } : {}),
+    sortBy: sortBy.value,
+    sortDir: sortDir.value,
+  })),
+  default: () => [],
+})
 
 function clearDateFilter() {
   dateFrom.value = ''
@@ -73,22 +78,15 @@ function toggleExclude() {
 
 const filteredRows = computed(() => {
   const allUsers = users.value || []
-
   return allUsers.filter((user: any) => {
     const hasKnownRole = roleFilter.some(known =>
-      user.roles?.some((role: string) => role.toLowerCase().includes(known.toLowerCase()))
+        user.roles?.some((role: string) => role.toLowerCase().includes(known.toLowerCase()))
     )
     if (excludeKnownRoles.value && hasKnownRole) return false
     if (zeroMeetings.value && (user.meetingCount ?? 0) !== 0) return false
-
-    if (statusFilter.value === 'active' && user.removedAt) return false
-    if (statusFilter.value === 'removed' && !user.removedAt) return false
-
-    const matchesRoles = selectedRoles.value.length === 0 || selectedRoles.value.every(selected =>
-      user.roles?.some((role: string) => role.toLowerCase().includes(selected.toLowerCase()))
+    return selectedRoles.value.length === 0 || selectedRoles.value.every(selected =>
+        user.roles?.some((role: string) => role.toLowerCase().includes(selected.toLowerCase()))
     )
-    const matchesQuery = !q.value || user.username?.toLowerCase().includes(q.value.toLowerCase())
-    return matchesRoles && matchesQuery
   })
 })
 
@@ -106,16 +104,7 @@ function sortValue(user: any, key: SortKey): number {
   }
 }
 
-const sortedRows = computed(() => {
-  const rows = [...filteredRows.value]
-  rows.sort((a: any, b: any) => {
-    const av = sortValue(a, sortBy.value)
-    const bv = sortValue(b, sortBy.value)
-    if (av === bv) return (a.username || '').localeCompare(b.username || '')
-    return sortDir.value === 'asc' ? av - bv : bv - av
-  })
-  return rows
-})
+const sortedRows = computed(() => filteredRows.value)
 
 const paginatedRows = computed(() => {
   const start = (page.value - 1) * limit.value
@@ -325,7 +314,7 @@ const roleFilter = ['Alpha', 'Delta']
               :class="stateDotClass[userEngagement(row.original).state]"
               :title="userEngagement(row.original).label"
             />
-            <UAvatar :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
+            <UAvatar :src="row.original.avatarUrl ?? undefined" :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
             <div class="flex items-center gap-1.5 min-w-0">
               <span class="font-medium text-gray-900 dark:text-white truncate">{{ row.original.username }}</span>
               <UBadge
@@ -490,7 +479,7 @@ const roleFilter = ['Alpha', 'Delta']
                 :class="stateDotClass[userEngagement(user).state]"
                 :title="userEngagement(user).label"
               />
-              <UAvatar :alt="user.username" size="md" :ui="{ rounded: 'rounded-lg' }" class="shrink-0" />
+              <UAvatar :src="user.avatarUrl ?? undefined" :alt="user.username" size="md" :ui="{ rounded: 'rounded-lg' }" class="shrink-0" />
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
                   <p class="font-semibold text-gray-900 dark:text-white truncate">{{ user.username }}</p>

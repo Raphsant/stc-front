@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
     user: {
       id: String(user._id),
       username: user.username,
+      role: (user as any).role ?? 'admin',
     },
   })
 

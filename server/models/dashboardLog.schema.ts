@@ -9,7 +9,11 @@ export const DashBoardLog = defineMongooseModel({
             type: String,
             ref: 'DiscordUser',
             index: true,
-            required: true,
+            required: false,  // optional for admin actions that affect no specific user
+        },
+        adminUsername: {
+            type: String,
+            required: false,  // set for admin-* log types
         },
         occurredAt: {
             type: Date,
@@ -18,7 +22,7 @@ export const DashBoardLog = defineMongooseModel({
         logType: {
             type: [String],
             required: true,
-            enum: ['zoom-register', 'zoom-refresh', 'discord-command', 'discord-moderation', 'clickfunnels']
+            enum: ['zoom-register', 'zoom-refresh', 'discord-command', 'discord-moderation', 'clickfunnels', 'admin-remove', 'admin-clear', 'journal-entry', 'journal-delete']
         },
         zoomLogId: {
             type: mongoose.Schema.Types.ObjectId,

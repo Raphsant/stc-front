@@ -1,5 +1,7 @@
-import { DashBoardLog } from "#server/models/dashboardLog.schema";
-import mongoose from "mongoose";
+import { ZoomLog } from '#server/models/ZoomLog.schema'
+import { DashBoardLog } from '#server/models/dashboardLog.schema'
+import mongoose from 'mongoose'
+import type { HydratedDocument } from 'mongoose'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
@@ -19,8 +21,8 @@ export default defineEventHandler(async (event) => {
 
         // Find or create the ZoomLog — same meetingId + same startTime is one entry
         const occurredAt = new Date(Number(startTime) * 1000)
-        //@ts-ignore
-        let log = await ZoomLog.findOne({ meetingId, occurredAt }).session(session)
+        let log: HydratedDocument<{ meetingId: string; occurredAt: Date; participants: string[]; name: string }> | null
+        log = await ZoomLog.findOne({ meetingId, occurredAt }).session(session)
 
         if (!log) {
             //@ts-ignore
@@ -34,12 +36,12 @@ export default defineEventHandler(async (event) => {
 
         if (discordUser) {
             const { id: userId, username, roles } = discordUser
-            //@ts-ignore
-            if (!log.participants.includes(userId)) {
-                //@ts-ignore
-                log.participants.push(userId)
-                //@ts-ignore
-                await log.save({ session })
+
+            if (!log?.participants.includes(userId)) {
+
+                log?.participants.push(userId)
+
+                await log?.save({ session })
             }
 
             let user = await DiscordUser.findById(userId).session(session)
@@ -68,19 +70,15 @@ export default defineEventHandler(async (event) => {
                 }
             }
 
-            //@ts-ignore
+
             await DashBoardLog.findOneAndUpdate(
                 { userId, zoomLogId: log._id, logType: ['zoom-register'] },
-                {
-                    $inc: { count: 1 },
-                    $setOnInsert: { occurredAt: new Date() },
-                },
-                { upsert: true, session }
+                { $inc: { count: 1 }, $setOnInsert: { occurredAt: new Date() } },
+                { upsert: true, session } as mongoose.QueryOptions
             )
         }
 
         await session.commitTransaction()
-        console.log('Transaction committed')
         return { success: true, log }
 
     } catch (error) {

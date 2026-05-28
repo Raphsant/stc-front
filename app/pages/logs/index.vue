@@ -112,6 +112,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
             <div class="flex items-start gap-3">
               <UAvatar
                 v-if="log.userId"
+                :src="log.userId.avatarUrl ?? undefined"
                 :alt="log.userId.username"
                 size="sm"
                 :ui="{ rounded: 'rounded-lg' }"
@@ -191,6 +192,7 @@ const logTypeMap: Record<string, { label: string, color: any, icon: string }> = 
             <div class="flex items-center gap-2 sm:gap-3 py-1">
               <UAvatar
                 v-if="row.original.userId"
+                :src="row.original.userId.avatarUrl ?? undefined"
                 :alt="row.original.userId.username"
                 size="xs"
               />

@@ -19,6 +19,10 @@ export const DiscordUser = defineMongooseModel({
       type: [String],
       default: [],
     },
+    avatarUrl: {
+      type: String,
+      default: null,
+    },
     messageCount: {
       type: Number,
       default: 0,

@@ -134,17 +134,20 @@ async function logout() {
   window.location.href = '/login'
 }
 
-const navItems = [
+const isSuperAdmin = computed(() => (session.value?.user as any)?.role === 'superadmin')
+
+const navItems = computed(() => [
   { label: 'Dashboard', icon: 'i-heroicons-squares-2x2-20-solid', to: '/' },
   { label: 'Usuarios', icon: 'i-heroicons-user-group-solid', to: '/discord-users' },
   { label: 'Meetings', icon: 'i-heroicons-list-bullet-20-solid', to: '/meetings' },
   { label: 'Logs', icon: 'i-heroicons-document-text-solid', to: '/logs' },
   { label: 'Bot Status', icon: 'i-heroicons-signal-20-solid', to: '/status' },
   { label: 'Changelog', icon: 'i-heroicons-document-text-20-solid', to: '/changelog' },
-]
+  ...(isSuperAdmin.value ? [{ label: 'Eliminaciones', icon: 'i-heroicons-flag-20-solid', to: '/journal/pending-deletions' }] : []),
+])
 
 const currentRouteName = computed(() => {
-  const item = navItems.find(i => route.path === i.to || route.path.startsWith(i.to + '/'))
+  const item = navItems.value.find(i => route.path === i.to || route.path.startsWith(i.to + '/'))
   return item ? item.label : 'Dashboard'
 })
 </script>

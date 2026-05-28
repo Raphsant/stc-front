@@ -24,6 +24,9 @@ interface JournalEntry {
   adminUsername: string
   createdAt: string
   updatedAt: string
+  markedForDeletion: boolean
+  markedForDeletionAt?: string | null
+  markedForDeletionBy?: string | null
 }
 
 const journalType = ref<'text' | 'image'>('text')
@@ -117,6 +120,37 @@ async function submitJournalEntry() {
     })
   } finally {
     journalSubmitting.value = false
+  }
+}
+
+const journalActionId = ref<string | null>(null)
+
+async function toggleMarkForDeletion(entry: JournalEntry) {
+  journalActionId.value = entry._id
+  try {
+    await $fetch(`/api/discord-users/${userId}/journal/${entry._id}`, { method: 'PATCH' })
+    await refreshJournal()
+    toast.add({
+      title: entry.markedForDeletion ? 'Marca eliminada' : 'Entrada marcada para eliminar',
+      color: entry.markedForDeletion ? 'neutral' : 'warning',
+    })
+  } catch (e: any) {
+    toast.add({ title: 'Error', description: e?.statusMessage || e?.message || '', color: 'error' })
+  } finally {
+    journalActionId.value = null
+  }
+}
+
+async function approveDelete(entry: JournalEntry) {
+  journalActionId.value = entry._id
+  try {
+    await $fetch(`/api/discord-users/${userId}/journal/${entry._id}`, { method: 'DELETE' })
+    await refreshJournal()
+    toast.add({ title: 'Entrada eliminada', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'Error', description: e?.statusMessage || e?.message || '', color: 'error' })
+  } finally {
+    journalActionId.value = null
   }
 }
 
@@ -276,6 +310,7 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
       <UCard>
         <div class="flex flex-col md:flex-row md:items-center gap-6">
           <UAvatar
+            :src="user.avatarUrl ?? undefined"
             :alt="user.username"
             size="xl"
             :ui="{ rounded: 'rounded-2xl' }"
@@ -308,7 +343,7 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
               <UTooltip v-if="user.removedAt" :text="new Date(user.removedAt).toLocaleString('es-ES')">
                 <span class="flex items-center gap-1">
                   <UIcon name="i-heroicons-arrow-right-on-rectangle" class="text-gray-400" />
-                  Eliminado el {{ formatRelativeTime(user.removedAt) }}
+                  Eliminado {{ formatRelativeTime(user.removedAt) }}
                 </span>
               </UTooltip>
             </div>
@@ -685,6 +720,40 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
                 >
               </a>
               <div v-else class="text-xs text-gray-400 italic">Imagen no disponible</div>
+
+              <!-- Deletion mark indicator -->
+              <div
+                v-if="entry.markedForDeletion"
+                class="mt-3 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400"
+              >
+                <UIcon name="i-heroicons-flag" class="shrink-0" />
+                <span>Marcado para eliminar por <strong>{{ entry.markedForDeletionBy }}</strong></span>
+              </div>
+
+              <!-- Action buttons -->
+              <div v-if="loggedIn" class="mt-3 flex justify-end gap-2">
+                <UButton
+                  v-if="(session?.user as any)?.role === 'superadmin' && entry.markedForDeletion"
+                  size="xs"
+                  color="error"
+                  variant="soft"
+                  icon="i-heroicons-trash"
+                  :loading="journalActionId === entry._id"
+                  @click="approveDelete(entry)"
+                >
+                  Aprobar eliminación
+                </UButton>
+                <UButton
+                  size="xs"
+                  :color="entry.markedForDeletion ? 'neutral' : 'warning'"
+                  variant="ghost"
+                  :icon="entry.markedForDeletion ? 'i-heroicons-arrow-uturn-left' : 'i-heroicons-flag'"
+                  :loading="journalActionId === entry._id"
+                  @click="toggleMarkForDeletion(entry)"
+                >
+                  {{ entry.markedForDeletion ? 'Desmarcar' : 'Marcar para eliminar' }}
+                </UButton>
+              </div>
             </div>
           </li>
         </ol>

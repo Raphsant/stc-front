@@ -160,7 +160,7 @@ function formatDate(date: string) {
 
                         <template #username-cell="{ row }">
                             <div class="flex items-center gap-3 py-1">
-                                <UAvatar :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
+                                <UAvatar :src="row.original.avatarUrl ?? undefined" :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
                                 <span class="font-medium text-gray-900 dark:text-white">{{ row.original.username }}</span>
                             </div>
                         </template>

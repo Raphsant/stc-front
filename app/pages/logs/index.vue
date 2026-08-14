@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const badgeVariant = useBadgeVariant()
 useSeoMeta({
   title: 'Logs - STC Control',
   description: 'Historial detallado de todas las acciones del sistema y registros de usuarios.',
@@ -16,18 +15,20 @@ const paginatedLogs = computed(() => {
   return (logs.value ?? []).slice(start, start + limit.value)
 })
 
-const total = computed(() => logs.value?.length ?? 0)
+const total      = computed(() => logs.value?.length ?? 0)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)))
 
 watch(logs, () => { page.value = 1 })
 
-const columns = [
-  { accessorKey: 'userId',     header: 'Usuario',   class: 'px-2 sm:px-4' },
-  { accessorKey: 'logType',    header: 'Actividad', class: 'hidden sm:table-cell' },
-  { accessorKey: 'zoomLogId',  header: 'Meeting',   class: 'px-2 sm:px-4' },
-  { accessorKey: 'occurredAt', header: 'Fecha',     class: 'hidden lg:table-cell' },
-  { accessorKey: 'count',      header: 'Intentos',  class: 'hidden sm:table-cell' },
-  { id: 'actions',             header: '',          class: 'px-2 sm:px-4' },
-]
+function visiblePages(cur: number, count: number): (number | '...')[] {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1)
+  const out: (number | '...')[] = [1]
+  if (cur > 3) out.push('...')
+  for (let i = Math.max(2, cur - 1); i <= Math.min(count - 1, cur + 1); i++) out.push(i)
+  if (cur < count - 2) out.push('...')
+  out.push(count)
+  return out
+}
 
 function formatFullDate(date: string | Date) {
   if (!date) return 'n/a'
@@ -43,258 +44,331 @@ function formatDateOnly(date: string | Date) {
   return new Date(date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
-const logTypeMap: Record<string, { label: string, color: any, icon: string }> = {
-  'zoom-register':      { label: 'Registro Zoom',      color: 'primary', icon: 'i-heroicons-video-camera' },
-  'zoom-refresh':       { label: 'Actualización Zoom', color: 'blue',    icon: 'i-heroicons-arrow-path' },
-  'discord-command':    { label: 'Comando Discord',    color: 'indigo',  icon: 'i-heroicons-command-line' },
-  'discord-moderation': { label: 'Moderación',         color: 'red',     icon: 'i-heroicons-shield-check' },
-  'clickfunnels':       { label: 'ClickFunnels',       color: 'orange',  icon: 'i-heroicons-funnel' },
+const logTypeMap: Record<string, { label: string, tone: string, icon: string }> = {
+  'zoom-register':      { label: 'Registro Zoom',      tone: 'gold',    icon: 'i-lucide-video' },
+  'zoom-refresh':       { label: 'Actualización Zoom', tone: 'blue',    icon: 'i-lucide-refresh-cw' },
+  'discord-command':    { label: 'Comando Discord',    tone: 'neutral', icon: 'i-lucide-terminal' },
+  'discord-moderation': { label: 'Moderación',         tone: 'red',     icon: 'i-lucide-shield-check' },
+  'clickfunnels':       { label: 'ClickFunnels',       tone: 'green',   icon: 'i-lucide-filter' },
+}
+
+function initial(name?: string) {
+  return (name || '?').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '?'
 }
 </script>
 
 <template>
-  <div class="p-4 sm:p-6">
-    <div class="mb-6 sm:mb-8 flex justify-between items-start">
+  <div class="lg-page">
+    <!-- Cabecera -->
+    <div class="stc-page-head">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Registro de Actividad</h1>
-        <p class="text-gray-500 mt-1 text-sm sm:text-base">Historial detallado de todas las acciones del sistema y registros de usuarios.</p>
+        <div class="stc-page-title">Registro de actividad</div>
+        <div class="stc-page-sub">Historial detallado de las acciones del sistema y registros de usuarios.</div>
       </div>
-      <span class="text-sm text-gray-400 mt-1">{{ total }} {{ total === 1 ? 'registro' : 'registros' }}</span>
+      <span class="stc-badge gold stc-mono">
+        {{ total.toLocaleString() }} {{ total === 1 ? 'registro' : 'registros' }}
+      </span>
     </div>
 
-    <div v-if="error" class="mb-6">
-      <UAlert
-        icon="i-heroicons-exclamation-triangle"
-        color="error"
-        variant="soft"
-        title="Error"
-        :description="`No se pudieron cargar los logs: ${error.message}`"
-      />
-    </div>
-
-    <!-- Skeleton -->
-    <UCard v-if="pending" class="dark:bg-neutral-900/50 dark:border-neutral-800">
-      <div class="space-y-4">
-        <div v-for="i in 10" :key="i" class="flex items-center gap-4">
-          <USkeleton class="h-8 w-8 rounded-lg shrink-0" />
-          <div class="space-y-1.5 flex-1">
-            <USkeleton class="h-3.5 w-28" />
-            <USkeleton class="h-3 w-20" />
-          </div>
-          <USkeleton class="h-5 w-24 rounded-full hidden sm:block" />
-          <div class="hidden sm:flex flex-col gap-1">
-            <USkeleton class="h-3.5 w-32" />
-            <USkeleton class="h-3 w-20" />
-          </div>
-          <USkeleton class="h-3.5 w-24 hidden lg:block" />
-          <div class="flex gap-1 ml-auto">
-            <USkeleton class="h-7 w-7 rounded-md" />
-            <USkeleton class="h-7 w-7 rounded-md" />
-          </div>
-        </div>
+    <!-- Error -->
+    <section v-if="error" class="stc-panel lg-alert">
+      <UIcon name="i-lucide-triangle-alert" class="w-5 h-5 flex-shrink-0" />
+      <div>
+        <div class="lg-alert-t">Error</div>
+        <p class="lg-alert-p">No se pudieron cargar los logs: {{ error.message }}</p>
       </div>
-    </UCard>
+    </section>
 
-    <template v-else>
-      <!-- ── MOBILE card list (< md) ── -->
-      <div class="md:hidden">
-        <div v-if="!paginatedLogs.length" class="flex flex-col items-center justify-center py-12 text-gray-500">
-          <UIcon name="i-heroicons-clipboard-document-list" class="text-4xl mb-2" />
-          <p class="text-sm">No se encontró actividad registrada.</p>
-        </div>
-
-        <div v-else class="flex flex-col gap-3">
-          <UCard
-            v-for="log in paginatedLogs"
-            :key="log._id"
-            class="dark:bg-neutral-900/50 dark:border-neutral-800"
-          >
-            <div class="flex items-start gap-3">
-              <UAvatar
-                v-if="log.userId"
-                :src="log.userId.avatarUrl ?? undefined"
-                :alt="log.userId.username"
-                size="sm"
-                :ui="{ rounded: 'rounded-lg' }"
-                class="shrink-0 mt-0.5"
-              />
-              <div v-else class="p-2 rounded-lg bg-cream-300 dark:bg-neutral-800 text-neutral-500 shrink-0 mt-0.5">
-                <UIcon name="i-heroicons-user" class="w-4 h-4" />
-              </div>
-
-              <div class="flex-1 min-w-0 space-y-1.5">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <span class="font-semibold text-sm text-white truncate">
-                    {{ log.userId?.username || 'Usuario' }}
-                  </span>
-                  <template v-for="type in log.logType" :key="type">
-                    <UBadge
-                      v-if="logTypeMap[type]"
-                      :color="logTypeMap[type].color"
-                      :variant="badgeVariant"
-                      size="xs"
-                      class="flex items-center gap-1"
-                    >
-                      <UIcon :name="logTypeMap[type].icon" class="w-2.5 h-2.5" />
-                      {{ logTypeMap[type].label }}
-                    </UBadge>
-                  </template>
-                  <UBadge v-if="(log.count ?? 1) > 1" color="warning" :variant="badgeVariant" size="xs" class="font-mono">
-                    {{ log.count }}x
-                  </UBadge>
-                </div>
-
-                <div v-if="log.zoomLogId" class="flex items-center gap-1.5 text-xs text-neutral-400">
-                  <UIcon name="i-heroicons-video-camera" class="w-3.5 h-3.5 text-primary-500 shrink-0" />
-                  <span class="truncate">{{ log.zoomLogId.name || log.zoomLogId.meetingId }}</span>
-                  <span class="text-neutral-600">·</span>
-                  <span class="shrink-0">{{ formatDateOnly(log.zoomLogId.occurredAt) }}</span>
-                </div>
-
-                <div class="flex items-center gap-1.5 text-xs text-neutral-500">
-                  <UIcon name="i-heroicons-clock" class="w-3.5 h-3.5 shrink-0" />
-                  {{ formatFullDate(log.occurredAt) }}
-                </div>
-              </div>
-
-              <div class="flex flex-col gap-1 shrink-0">
-                <UButton
-                  v-if="log.zoomLogId?._id"
-                  :to="`/meetings/${log.zoomLogId._id}`"
-                  icon="i-heroicons-video-camera"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                />
-                <UButton
-                  v-if="log.userId?._id"
-                  :to="`/discord-users/${log.userId._id}`"
-                  icon="i-heroicons-user"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                />
-              </div>
+    <section v-else class="stc-panel" style="overflow:hidden">
+      <!-- Carga -->
+      <template v-if="pending">
+        <div v-for="i in 10" :key="i" class="lg-trow lg-grid">
+          <div class="flex items-center gap-3">
+            <USkeleton class="w-9 h-9 rounded-lg flex-shrink-0" />
+            <div class="space-y-1.5">
+              <USkeleton class="h-3.5 w-28" />
+              <USkeleton class="h-3 w-20" />
             </div>
-          </UCard>
+          </div>
+          <USkeleton class="h-5 w-28 rounded-md" />
+          <div class="space-y-1.5 lg-col-meet">
+            <USkeleton class="h-3.5 w-36" />
+            <USkeleton class="h-3 w-24" />
+          </div>
+          <USkeleton class="h-3.5 w-28 lg-col-date" />
+          <USkeleton class="h-5 w-8 rounded-md lg-col-count" />
+          <div class="flex justify-end gap-1.5">
+            <USkeleton class="w-8 h-8 rounded-lg" />
+            <USkeleton class="w-8 h-8 rounded-lg" />
+          </div>
         </div>
+      </template>
 
-        <div v-if="total > limit" class="flex justify-center mt-6">
-          <UPagination v-model:page="page" :total="total" :items-per-page="limit" />
-        </div>
+      <!-- Vacío -->
+      <div v-else-if="!paginatedLogs.length" class="stc-empty">
+        <UIcon name="i-lucide-clipboard-list" />
+        <p>No se encontró actividad registrada.</p>
       </div>
 
-      <!-- ── DESKTOP table (≥ md) ── -->
-      <UCard class="hidden md:block dark: border-neutral-800">
-        <UTable :data="paginatedLogs" :columns="columns" class="w-full">
+      <template v-else>
+        <!-- Encabezados -->
+        <div class="lg-thead lg-grid">
+          <span class="stc-eyebrow">Usuario</span>
+          <span class="stc-eyebrow">Actividad</span>
+          <span class="stc-eyebrow lg-col-meet">Meeting</span>
+          <span class="stc-eyebrow lg-col-date">Fecha</span>
+          <span class="stc-eyebrow lg-col-count">Intentos</span>
+          <span class="stc-eyebrow" style="text-align:right">Acciones</span>
+        </div>
 
-          <template #userId-cell="{ row }">
-            <div class="flex items-center gap-2 sm:gap-3 py-1">
-              <UAvatar
-                v-if="row.original.userId"
-                :src="row.original.userId.avatarUrl ?? undefined"
-                :alt="row.original.userId.username"
-                size="xs"
-              />
-              <div v-else class="p-1.5 sm:p-2 rounded-lg bg-cream-300 dark:bg-neutral-800 text-neutral-500">
-                <UIcon name="i-heroicons-user" class="w-3.5 h-3.5 sm:w-5 sm:h-5" />
-              </div>
-              <div class="flex flex-col min-w-0">
-                <span class="font-medium text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                  {{ row.original.userId?.username || 'Usuario' }}
-                </span>
-                <span class="text-[10px] sm:text-xs text-neutral-500 font-mono truncate hidden sm:block">
-                  {{ row.original.userId?._id || row.original.userId }}
-                </span>
-              </div>
-            </div>
-          </template>
+        <!-- Filas -->
+        <div v-for="log in paginatedLogs" :key="log._id" class="lg-trow lg-grid">
+          <!-- Usuario -->
+          <div class="lg-user">
+            <span class="lg-av">
+              <img v-if="log.userId?.avatarUrl" :src="log.userId.avatarUrl" :alt="log.userId.username">
+              <template v-else>{{ initial(log.userId?.username) }}</template>
+            </span>
+            <span class="min-w-0">
+              <span class="lg-uname">{{ log.userId?.username || 'Usuario' }}</span>
+              <span class="lg-uid stc-code">{{ log.userId?._id || log.userId || '—' }}</span>
+            </span>
+          </div>
 
-          <template #logType-cell="{ row }">
-            <div class="flex flex-wrap gap-1">
-              <template v-for="type in row.original.logType" :key="type">
-                <UBadge
-                  v-if="logTypeMap[type]"
-                  :color="logTypeMap[type].color"
-                  :variant="badgeVariant"
-                  size="sm"
-                  class="flex items-center gap-1"
-                >
-                  <UIcon :name="logTypeMap[type].icon" class="w-3 h-3" />
-                  {{ logTypeMap[type].label }}
-                </UBadge>
-                <UBadge v-else color="neutral" :variant="badgeVariant" size="sm">{{ type }}</UBadge>
-              </template>
-            </div>
-          </template>
+          <!-- Actividad -->
+          <div class="lg-types">
+            <template v-for="type in log.logType" :key="type">
+              <span v-if="logTypeMap[type]" class="stc-badge" :class="logTypeMap[type].tone">
+                <UIcon :name="logTypeMap[type].icon" class="w-3 h-3" />
+                {{ logTypeMap[type].label }}
+              </span>
+              <span v-else class="stc-badge neutral">{{ type }}</span>
+            </template>
+          </div>
 
-          <template #zoomLogId-cell="{ row }">
-            <div v-if="row.original.zoomLogId" class="flex flex-col min-w-0">
-              <div class="flex items-center gap-1 font-medium text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                <UIcon name="i-heroicons-video-camera" class="text-primary-500 w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
-                <span class="truncate">{{ row.original.zoomLogId.name || row.original.zoomLogId.meetingId }}</span>
-              </div>
-              <div class="text-[10px] sm:text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
-                <UIcon name="i-heroicons-calendar" class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span>Meeting del {{ formatDateOnly(row.original.zoomLogId.occurredAt) }}</span>
-              </div>
-            </div>
-            <span v-else class="text-neutral-500 text-sm italic">N/A</span>
-          </template>
+          <!-- Meeting -->
+          <div class="lg-col-meet min-w-0">
+            <template v-if="log.zoomLogId">
+              <span class="lg-meet">
+                <UIcon name="i-lucide-video" class="w-3.5 h-3.5 flex-shrink-0" />
+                <span class="truncate">{{ log.zoomLogId.name || log.zoomLogId.meetingId }}</span>
+              </span>
+              <span class="lg-meet-sub stc-mono">Meeting del {{ formatDateOnly(log.zoomLogId.occurredAt) }}</span>
+            </template>
+            <span v-else class="lg-na">—</span>
+          </div>
 
-          <template #count-cell="{ row }">
-            <UBadge
-              :color="(row.original.count ?? 1) > 1 ? 'warning' : 'neutral'"
-              :variant="(row.original.count ?? 1) > 1 ? 'subtle' : 'soft'"
-              size="sm"
-              class="font-mono tabular-nums"
+          <!-- Fecha -->
+          <div class="lg-col-date">
+            <span class="lg-date stc-mono">{{ formatFullDate(log.occurredAt) }}</span>
+          </div>
+
+          <!-- Intentos -->
+          <div class="lg-col-count">
+            <span class="stc-badge stc-mono" :class="(log.count ?? 1) > 1 ? 'gold' : 'neutral'">
+              {{ log.count ?? 1 }}x
+            </span>
+          </div>
+
+          <!-- Acciones -->
+          <div class="lg-actions">
+            <NuxtLink
+              v-if="log.zoomLogId?._id"
+              :to="`/meetings/${log.zoomLogId._id}`"
+              class="stc-icon-btn"
+              title="Ver meeting"
             >
-              {{ row.original.count ?? 1 }}x
-            </UBadge>
-          </template>
-
-          <template #occurredAt-cell="{ row }">
-            <div class="flex items-center gap-2 text-neutral-400 text-sm">
-              <UIcon name="i-heroicons-clock" class="w-4 h-4" />
-              {{ formatFullDate(row.original.occurredAt) }}
-            </div>
-          </template>
-
-          <template #actions-cell="{ row }">
-            <div class="flex justify-end gap-2">
-              <UTooltip text="Ver Meeting" v-if="row.original.zoomLogId?._id">
-                <UButton
-                  :to="`/meetings/${row.original.zoomLogId._id}`"
-                  icon="i-heroicons-arrow-top-right-on-square"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                />
-              </UTooltip>
-              <UTooltip text="Ver Usuario" v-if="row.original.userId?._id">
-                <UButton
-                  :to="`/discord-users/${row.original.userId._id}`"
-                  icon="i-heroicons-user"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                />
-              </UTooltip>
-            </div>
-          </template>
-
-          <template #empty-state>
-            <div class="flex flex-col items-center justify-center py-12 text-gray-500">
-              <UIcon name="i-heroicons-clipboard-document-list" class="text-4xl mb-2" />
-              <p>No se encontró actividad registrada.</p>
-            </div>
-          </template>
-        </UTable>
-
-        <div v-if="total > limit" class="flex justify-center border-t border-gray-200 dark:border-gray-800 py-4">
-          <UPagination v-model:page="page" :total="total" :items-per-page="limit" />
+              <UIcon name="i-lucide-video" class="w-[15px] h-[15px]" />
+            </NuxtLink>
+            <NuxtLink
+              v-if="log.userId?._id"
+              :to="`/discord-users/${log.userId._id}`"
+              class="stc-icon-btn"
+              title="Ver usuario"
+            >
+              <UIcon name="i-lucide-user" class="w-[15px] h-[15px]" />
+            </NuxtLink>
+          </div>
         </div>
-      </UCard>
-    </template>
+
+        <!-- Paginación -->
+        <div v-if="total > limit" class="lg-pager">
+          <button class="lg-pbtn" :disabled="page === 1" @click="page = 1">
+            <UIcon name="i-lucide-chevrons-left" class="w-[15px] h-[15px]" />
+          </button>
+          <button class="lg-pbtn" :disabled="page === 1" @click="page--">
+            <UIcon name="i-lucide-chevron-left" class="w-[15px] h-[15px]" />
+          </button>
+          <template v-for="(p, i) in visiblePages(page, totalPages)" :key="`${p}-${i}`">
+            <span v-if="p === '...'" class="lg-pgap">…</span>
+            <button v-else class="lg-pbtn" :class="{ on: p === page }" @click="page = (p as number)">{{ p }}</button>
+          </template>
+          <button class="lg-pbtn" :disabled="page === totalPages" @click="page++">
+            <UIcon name="i-lucide-chevron-right" class="w-[15px] h-[15px]" />
+          </button>
+          <button class="lg-pbtn" :disabled="page === totalPages" @click="page = totalPages">
+            <UIcon name="i-lucide-chevrons-right" class="w-[15px] h-[15px]" />
+          </button>
+        </div>
+      </template>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.lg-page { display: flex; flex-direction: column; gap: 20px; }
+
+/* alerta */
+.lg-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  color: var(--red);
+  border-color: var(--red-line);
+  background: var(--red-dim);
+}
+.lg-alert-t { font-weight: 600; font-size: 14px; }
+.lg-alert-p { font-size: 13px; color: var(--dim); margin-top: 3px; }
+
+/* tabla */
+.lg-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(190px, 1.5fr) minmax(150px, 1.2fr) minmax(170px, 1.4fr)
+    minmax(130px, .9fr) 80px 84px;
+  align-items: center;
+  gap: 14px;
+}
+.lg-thead { padding: 14px 22px; border-bottom: 1px solid var(--line); }
+.lg-trow {
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--line);
+  transition: background .14s;
+}
+.lg-trow:last-of-type { border-bottom: none; }
+.lg-trow:hover { background: rgba(255,255,255,.022); }
+html:not(.dark) .lg-trow:hover { background: rgba(0,0,0,.02); }
+
+/* usuario */
+.lg-user { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.lg-av {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text);
+  background: #161616;
+  border: 1px solid var(--line);
+}
+html:not(.dark) .lg-av { background: #2a2a2a; color: #f0f0f0; }
+.lg-av img { width: 100%; height: 100%; object-fit: cover; }
+.lg-uname {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lg-uid {
+  display: block;
+  font-size: 10.5px;
+  color: var(--faint);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lg-types { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+/* meeting */
+.lg-meet {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 0;
+}
+.lg-meet :deep(.iconify) { color: var(--gold); }
+.lg-meet-sub { display: block; font-size: 11px; color: var(--faint); margin-top: 2px; }
+.lg-na { font-size: 13px; color: var(--faint); }
+
+.lg-date { font-size: 12px; color: var(--dim); white-space: nowrap; }
+
+.lg-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+
+/* paginación */
+.lg-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--line);
+}
+.lg-pbtn {
+  min-width: 34px; height: 34px;
+  padding: 0 10px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  transition: .14s;
+}
+.lg-pbtn:hover:not(:disabled):not(.on) {
+  color: var(--text);
+  border-color: var(--line-2);
+  background: rgba(255,255,255,.03);
+}
+html:not(.dark) .lg-pbtn:hover:not(:disabled):not(.on) { background: rgba(0,0,0,.03); }
+.lg-pbtn.on {
+  color: var(--gold-ink);
+  font-weight: 700;
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.lg-pbtn:disabled { opacity: .35; cursor: not-allowed; }
+.lg-pgap { min-width: 22px; text-align: center; color: var(--faint); font-size: 12.5px; }
+
+/* responsive */
+@media (max-width: 1280px) {
+  .lg-grid {
+    grid-template-columns: minmax(180px, 1.5fr) minmax(150px, 1.2fr) minmax(170px, 1.4fr) 84px;
+  }
+  .lg-col-date, .lg-col-count { display: none; }
+}
+@media (max-width: 900px) {
+  .lg-grid { grid-template-columns: minmax(170px, 1.4fr) minmax(140px, 1fr) 84px; }
+  .lg-col-meet { display: none; }
+}
+@media (max-width: 640px) {
+  .lg-thead { display: none; }
+  .lg-trow.lg-grid {
+    grid-template-columns: 1fr auto;
+    gap: 8px 10px;
+    padding: 14px 16px;
+    align-items: start;
+  }
+  .lg-user    { grid-column: 1; grid-row: 1; }
+  .lg-types   { grid-column: 1; grid-row: 2; }
+  .lg-actions { grid-column: 2; grid-row: 1 / 3; align-self: center; flex-direction: column; }
+  .lg-pager   { gap: 5px; padding: 16px 12px; }
+  .lg-pbtn    { min-width: 30px; height: 30px; font-size: 12px; }
+}
+</style>

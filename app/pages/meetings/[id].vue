@@ -1,7 +1,6 @@
 <script setup lang="ts">
-const badgeVariant = useBadgeVariant()
-const route  = useRoute()
-const toast  = useToast()
+const route = useRoute()
+const toast = useToast()
 
 const { data: meeting, pending, error, refresh } = useFetch(`/api/meetings/${route.params.id}`)
 
@@ -60,19 +59,23 @@ async function clearAllParticipants() {
     }
 }
 
-// ── Table ───────────────────────────────────────────────────────
-const columns = [
-    { accessorKey: 'username', header: 'Usuario' },
-    { accessorKey: 'roles',    header: 'Roles' },
-    { accessorKey: '_id',      header: 'Discord ID' },
-    { id: 'actions',           header: '' },
-]
+// ── Roles ───────────────────────────────────────────────────────
+const roleClass: Record<string, string> = {
+    'Alpha.': 'gold',
+    'Alpha':  'gold',
+    'Delta':  'blue',
+    'Delta.': 'blue',
+}
 
-const colorMap: Record<string, any> = {
-    'Alpha.': 'warning',
-    'Alpha':  'warning',
-    'Delta':  'info',
-    'Delta.': 'info',
+function knownRoles(roles: string[] = []) {
+    return roles.filter(r => roleClass[r])
+}
+function otherRoles(roles: string[] = []) {
+    return roles.filter(r => !roleClass[r])
+}
+
+function initial(name: string) {
+    return (name || '?').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '?'
 }
 
 function formatDate(date: string) {
@@ -85,171 +88,144 @@ function formatDate(date: string) {
 </script>
 
 <template>
-    <div class="p-6 max-w-6xl mx-auto">
-        <div class="mb-8 flex justify-between items-center">
-            <UButton to="/meetings" icon="i-heroicons-arrow-left" color="neutral" variant="ghost">
-                Volver a Meetings
-            </UButton>
-        </div>
+    <div class="md-page">
+        <NuxtLink to="/meetings" class="stc-link-all" style="align-self:flex-start">
+            <UIcon name="i-lucide-arrow-left" class="w-3.5 h-3.5" />
+            Volver a Meetings
+        </NuxtLink>
 
-        <!-- Skeleton -->
-        <div v-if="pending" class="space-y-6">
-            <UCard>
-                <div class="space-y-2">
-                    <USkeleton class="h-8 w-64" />
-                    <USkeleton class="h-4 w-48" />
-                </div>
-            </UCard>
-            <USkeleton class="h-96 w-full" />
-        </div>
+        <!-- Carga -->
+        <template v-if="pending">
+            <USkeleton class="h-32 w-full rounded-[10px]" />
+            <USkeleton class="h-96 w-full rounded-[10px]" />
+        </template>
 
         <!-- Error -->
-        <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
-            <h3 class="font-bold text-lg mb-2">Error al cargar el meeting</h3>
-            <p>{{ error.message }}</p>
-            <UButton to="/meetings" class="mt-4" color="neutral" size="sm">Regresar</UButton>
-        </div>
+        <section v-else-if="error" class="stc-panel md-alert">
+            <UIcon name="i-lucide-triangle-alert" class="w-5 h-5 flex-shrink-0" />
+            <div>
+                <div class="md-alert-t">Error al cargar el meeting</div>
+                <p class="md-alert-p">{{ error.message }}</p>
+                <NuxtLink to="/meetings" class="stc-btn sm" style="margin-top:12px">Regresar</NuxtLink>
+            </div>
+        </section>
 
-        <div v-else-if="meeting" class="space-y-8">
-            <!-- Meeting Info Header -->
-            <UCard>
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-                            <UIcon name="i-heroicons-video-camera" />
-                            Detalles de la sesión
-                        </div>
-                        <h1 class="text-3xl font-black tracking-tight text-gray-900 dark:text-white">
-                            {{ meeting.name }}
-                        </h1>
-                        <UBadge :variant="badgeVariant">{{ meeting.meetingId }}</UBadge>
-                        <p class="text-gray-500 flex items-center gap-2">
-                            <UIcon name="i-heroicons-calendar" />
-                            {{ formatDate(meeting.occurredAt) }}
-                        </p>
+        <template v-else-if="meeting">
+            <!-- Cabecera de la sesión -->
+            <section class="stc-panel md-hero">
+                <div class="min-w-0">
+                    <div class="stc-eyebrow" style="display:flex; align-items:center; gap:7px; color:var(--gold)">
+                        <UIcon name="i-lucide-video" class="w-3.5 h-3.5" />
+                        Detalles de la sesión
                     </div>
-
-                    <div class="flex flex-col items-center p-4 rounded-xl bg-primary/5 border border-primary/10 min-w-[140px]">
-                        <span class="text-3xl font-black text-primary">{{ meeting.participants?.length || 0 }}</span>
-                        <span class="text-xs font-bold uppercase tracking-wider text-primary/70 text-center">Asistentes</span>
+                    <h1 class="md-title">{{ meeting.name }}</h1>
+                    <div class="md-meta">
+                        <span class="stc-badge neutral stc-mono">ID {{ meeting.meetingId }}</span>
+                        <span class="md-date stc-mono">
+                            <UIcon name="i-lucide-calendar" class="w-3.5 h-3.5" />
+                            {{ formatDate(meeting.occurredAt) }}
+                        </span>
                     </div>
                 </div>
-            </UCard>
 
-            <!-- Participants Table -->
-            <div class="space-y-4">
-                <div class="flex items-center justify-between px-2">
-                    <h2 class="text-2xl font-bold flex items-center gap-2">
-                        <UIcon name="i-heroicons-users" class="text-primary" />
-                        Lista de Asistencia
+                <div class="md-count">
+                    <span class="md-count-n">{{ meeting.participants?.length || 0 }}</span>
+                    <span class="stc-eyebrow">Asistentes</span>
+                </div>
+            </section>
+
+            <!-- Lista de asistencia -->
+            <section class="stc-panel" style="overflow:hidden">
+                <div class="stc-panel-head">
+                    <h2 class="stc-panel-title">
+                        <UIcon name="i-lucide-users" class="w-[18px] h-[18px]" />
+                        Lista de asistencia
                     </h2>
-                    <UButton
+                    <button
                         v-if="meeting.participants?.length"
-                        color="error"
-                        variant="outline"
-                        icon="i-heroicons-trash"
-                        size="sm"
+                        class="stc-btn sm danger"
                         @click="confirmClearAll = true"
                     >
+                        <UIcon name="i-lucide-trash-2" class="w-3.5 h-3.5" />
                         Eliminar todos
-                    </UButton>
+                    </button>
                 </div>
 
-                <UCard :ui="{ body: { padding: 'p-0' } }">
-                    <UTable :data="meeting.participants || []" :columns="columns" class="w-full">
+                <div v-if="!meeting.participants?.length" class="stc-empty">
+                    <UIcon name="i-lucide-users" />
+                    <p>No se registraron participantes para este meeting.</p>
+                </div>
 
-                        <template #username-cell="{ row }">
-                            <div class="flex items-center gap-3 py-1">
-                                <UAvatar :src="row.original.avatarUrl ?? undefined" :alt="row.original.username" size="sm" :ui="{ rounded: 'rounded-lg' }" />
-                                <span class="font-medium text-gray-900 dark:text-white">{{ row.original.username }}</span>
-                            </div>
-                        </template>
+                <template v-else>
+                    <div class="md-thead md-grid">
+                        <span class="stc-eyebrow">Usuario</span>
+                        <span class="stc-eyebrow">Roles</span>
+                        <span class="stc-eyebrow md-col-id">Discord ID</span>
+                        <span class="stc-eyebrow" style="text-align:right">Acciones</span>
+                    </div>
 
-                        <template #roles-cell="{ row }">
-                            <div class="flex flex-wrap gap-1.5">
-                                <template v-for="role in (row.original.roles || [])" :key="role">
-                                    <UBadge v-if="colorMap[role]" :color="colorMap[role]" :variant="badgeVariant" size="sm" class="capitalize">
-                                        {{ role }}
-                                    </UBadge>
-                                </template>
-                                <UPopover v-if="row.original.roles?.filter((r: string) => !colorMap[r]).length" mode="hover">
-                                    <UBadge color="neutral" variant="soft" size="sm" class="cursor-help">
-                                        +{{ row.original.roles.filter((r: string) => !colorMap[r]).length }}
-                                    </UBadge>
-                                    <template #content>
-                                        <div class="p-2 max-w-xs flex flex-wrap gap-1">
-                                            <UBadge
-                                                v-for="role in row.original.roles.filter((r: string) => !colorMap[r])"
-                                                :key="role" color="neutral" variant="outline" size="xs"
-                                            >
-                                                {{ role }}
-                                            </UBadge>
-                                        </div>
-                                    </template>
-                                </UPopover>
-                            </div>
-                        </template>
+                    <div v-for="p in meeting.participants" :key="p._id" class="md-trow md-grid">
+                        <div class="md-user">
+                            <span class="md-av">
+                                <img v-if="p.avatarUrl" :src="p.avatarUrl" :alt="p.username">
+                                <template v-else>{{ initial(p.username) }}</template>
+                            </span>
+                            <span class="md-uname">{{ p.username }}</span>
+                        </div>
 
-                        <template #_id-cell="{ row }">
-                            <code class="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800/50 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">
-                                {{ row.original._id }}
-                            </code>
-                        </template>
+                        <div class="md-roles">
+                            <span
+                                v-for="role in knownRoles(p.roles)"
+                                :key="role"
+                                class="stc-badge"
+                                :class="roleClass[role]"
+                            >{{ role }}</span>
+                            <span
+                                v-if="otherRoles(p.roles).length"
+                                class="stc-badge neutral"
+                                :title="otherRoles(p.roles).join(', ')"
+                            >+{{ otherRoles(p.roles).length }}</span>
+                            <span v-if="!p.roles?.length" class="stc-badge outline">Ninguno</span>
+                        </div>
 
-                        <template #actions-cell="{ row }">
-                            <div class="flex justify-end gap-2">
-                                <UTooltip text="Ver perfil completo">
-                                    <UButton
-                                        :to="`/discord-users/${row.original._id}`"
-                                        icon="i-heroicons-user"
-                                        color="neutral"
-                                        variant="ghost"
-                                    />
-                                </UTooltip>
-                                <UTooltip text="Eliminar del meeting">
-                                    <UButton
-                                        icon="i-heroicons-trash"
-                                        color="error"
-                                        variant="ghost"
-                                        @click="promptRemove(row.original)"
-                                    />
-                                </UTooltip>
-                            </div>
-                        </template>
+                        <div class="md-col-id">
+                            <code class="md-id stc-code">{{ p._id }}</code>
+                        </div>
 
-                        <template #empty-state>
-                            <div class="flex flex-col items-center justify-center py-12 text-gray-500">
-                                <UIcon name="i-heroicons-users" class="text-4xl mb-2" />
-                                <p>No se registraron participantes para este meeting.</p>
-                            </div>
-                        </template>
-                    </UTable>
-                </UCard>
-            </div>
-        </div>
+                        <div class="md-actions">
+                            <NuxtLink :to="`/discord-users/${p._id}`" class="stc-icon-btn" title="Ver perfil completo">
+                                <UIcon name="i-lucide-user" class="w-[15px] h-[15px]" />
+                            </NuxtLink>
+                            <button class="stc-icon-btn danger" title="Eliminar del meeting" @click="promptRemove(p)">
+                                <UIcon name="i-lucide-trash-2" class="w-[15px] h-[15px]" />
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </section>
+        </template>
 
         <!-- ── Confirm remove single participant ── -->
         <UModal v-model:open="showRemoveModal" :dismissible="!isDeleting">
             <template #content>
-                <div class="p-6 space-y-4">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-                            <UIcon name="i-heroicons-trash" class="w-5 h-5 text-red-500" />
-                        </div>
-                        <h3 class="text-lg font-semibold">Eliminar registrante</h3>
+                <div class="md-modal">
+                    <div class="md-modal-head">
+                        <span class="md-modal-glyph">
+                            <UIcon name="i-lucide-trash-2" class="w-5 h-5" />
+                        </span>
+                        <h3 class="md-modal-title">Eliminar registrante</h3>
                     </div>
-                    <p class="text-gray-500 text-sm">
+                    <p class="md-modal-p">
                         ¿Estás seguro que deseas eliminar a
-                        <span class="font-semibold text-white">{{ confirmUser?.username }}</span>
+                        <b>{{ confirmUser?.username }}</b>
                         de este meeting? Esta acción no se puede deshacer.
                     </p>
-                    <div class="flex justify-end gap-3 pt-2">
-                        <UButton color="neutral" variant="ghost" :disabled="isDeleting" @click="confirmUser = null">
-                            Cancelar
-                        </UButton>
-                        <UButton color="error" :loading="isDeleting" icon="i-heroicons-trash" @click="removeParticipant">
-                            Eliminar
-                        </UButton>
+                    <div class="md-modal-foot">
+                        <button class="stc-btn" :disabled="isDeleting" @click="confirmUser = null">Cancelar</button>
+                        <button class="stc-btn danger" :disabled="isDeleting" @click="removeParticipant">
+                            <UIcon name="i-lucide-trash-2" class="w-3.5 h-3.5" />
+                            {{ isDeleting ? 'Eliminando…' : 'Eliminar' }}
+                        </button>
                     </div>
                 </div>
             </template>
@@ -258,28 +234,199 @@ function formatDate(date: string) {
         <!-- ── Confirm clear all ── -->
         <UModal v-model:open="confirmClearAll" :dismissible="!isDeleting">
             <template #content>
-                <div class="p-6 space-y-4">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-                            <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-red-500" />
-                        </div>
-                        <h3 class="text-lg font-semibold">Eliminar todos los registrantes</h3>
+                <div class="md-modal">
+                    <div class="md-modal-head">
+                        <span class="md-modal-glyph">
+                            <UIcon name="i-lucide-triangle-alert" class="w-5 h-5" />
+                        </span>
+                        <h3 class="md-modal-title">Eliminar todos los registrantes</h3>
                     </div>
-                    <p class="text-gray-500 text-sm">
+                    <p class="md-modal-p">
                         Esto eliminará a los
-                        <span class="font-semibold text-white">{{ meeting?.participants?.length }}</span>
+                        <b>{{ meeting?.participants?.length }}</b>
                         participantes de este meeting. Esta acción no se puede deshacer.
                     </p>
-                    <div class="flex justify-end gap-3 pt-2">
-                        <UButton color="neutral" variant="ghost" :disabled="isDeleting" @click="confirmClearAll = false">
-                            Cancelar
-                        </UButton>
-                        <UButton color="error" :loading="isDeleting" icon="i-heroicons-trash" @click="clearAllParticipants">
-                            Eliminar todos
-                        </UButton>
+                    <div class="md-modal-foot">
+                        <button class="stc-btn" :disabled="isDeleting" @click="confirmClearAll = false">Cancelar</button>
+                        <button class="stc-btn danger" :disabled="isDeleting" @click="clearAllParticipants">
+                            <UIcon name="i-lucide-trash-2" class="w-3.5 h-3.5" />
+                            {{ isDeleting ? 'Eliminando…' : 'Eliminar todos' }}
+                        </button>
                     </div>
                 </div>
             </template>
         </UModal>
     </div>
 </template>
+
+<style scoped>
+.md-page { display: flex; flex-direction: column; gap: 18px; max-width: 1180px; width: 100%; }
+
+/* alerta */
+.md-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 18px;
+    color: var(--red);
+    border-color: var(--red-line);
+    background: var(--red-dim);
+}
+.md-alert-t { font-weight: 600; font-size: 14px; }
+.md-alert-p { font-size: 13px; color: var(--dim); margin-top: 3px; }
+
+/* héroe */
+.md-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 22px 24px;
+}
+.md-title {
+    font-family: var(--disp);
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: .004em;
+    line-height: 1.04;
+    text-transform: uppercase;
+    color: var(--text);
+    margin: 8px 0 12px;
+}
+.md-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.md-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--dim);
+    text-transform: capitalize;
+}
+
+.md-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 132px;
+    padding: 16px 20px;
+    border-radius: var(--r);
+    background: var(--gold-wash);
+    border: 1px solid var(--gold-ring);
+}
+.md-count-n {
+    font-family: var(--disp);
+    font-variant-numeric: tabular-nums;
+    font-size: 46px;
+    font-weight: 800;
+    line-height: .95;
+    color: var(--gold);
+}
+
+/* tabla */
+.md-grid {
+    display: grid;
+    grid-template-columns: minmax(200px, 1.6fr) minmax(150px, 1.2fr) minmax(180px, 1.2fr) 92px;
+    align-items: center;
+    gap: 14px;
+}
+.md-thead { padding: 14px 24px; border-bottom: 1px solid var(--line); }
+.md-trow {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--line);
+    transition: background .14s;
+}
+.md-trow:last-child { border-bottom: none; }
+.md-trow:hover { background: rgba(255,255,255,.022); }
+html:not(.dark) .md-trow:hover { background: rgba(0,0,0,.02); }
+
+.md-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.md-av {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    font-family: var(--disp);
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text);
+    background: #161616;
+    border: 1px solid var(--line);
+}
+html:not(.dark) .md-av { background: #2a2a2a; color: #f0f0f0; }
+.md-av img { width: 100%; height: 100%; object-fit: cover; }
+.md-uname {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.md-roles { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.md-id {
+    display: inline-block;
+    max-width: 100%;
+    font-size: 11px;
+    color: var(--faint);
+    background: var(--inset);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 3px 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.md-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+
+/* modales */
+.md-modal { padding: 24px; }
+.md-modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.md-modal-glyph {
+    width: 38px; height: 38px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: var(--red);
+    background: var(--red-dim);
+    border: 1px solid var(--red-line);
+}
+.md-modal-title {
+    font-family: var(--disp);
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: .015em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+.md-modal-p { font-size: 13.5px; color: var(--dim); line-height: 1.55; }
+.md-modal-p b { color: var(--text); font-weight: 600; }
+.md-modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+@media (max-width: 900px) {
+    .md-grid { grid-template-columns: minmax(180px, 1.6fr) minmax(130px, 1fr) 92px; }
+    .md-col-id { display: none; }
+}
+@media (max-width: 640px) {
+    .md-hero  { padding: 18px 16px; }
+    .md-title { font-size: 30px; }
+    .md-count { width: 100%; }
+    .md-thead { display: none; }
+    .md-trow.md-grid {
+        grid-template-columns: 1fr auto;
+        gap: 8px 10px;
+        padding: 14px 16px;
+        align-items: start;
+    }
+    .md-user    { grid-column: 1; grid-row: 1; }
+    .md-roles   { grid-column: 1; grid-row: 2; }
+    .md-actions { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+}
+</style>

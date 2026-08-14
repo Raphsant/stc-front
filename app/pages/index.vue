@@ -1,412 +1,338 @@
 <script setup lang="ts">
-const badgeVariant = useBadgeVariant()
-
 useSeoMeta({
   title: 'Dashboard - STC Control',
-  description: 'Panel de control del Stock Trading Club. Estadísticas, actividad reciente y estado del sistema.',
+  description: 'Panel de control del Stock Trading Club.',
   ogTitle: 'Dashboard - STC Control',
 })
 
-import { Line } from 'vue-chartjs'
-import {
-  Chart as ChartJS,
-  LineElement,
-  PointElement,
-  CategoryScale,
-  LinearScale,
-  Tooltip,
-  Filler,
-} from 'chart.js'
-
-ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Filler)
-
 const nuxtApp = useNuxtApp()
-const {data: discordInfo, pending: discordPending} = await useFetch('https://stc.snuuy.com/webhooks/discord-info', {
-  method: 'GET',
-  key: 'discord-info',
-  getCachedData(key) {
-    return nuxtApp.payload.data[key] || nuxtApp.static.data[key]
-  }
-})
-useSeoMeta({
-  title: 'Dashboard - STC control',
-  description: 'Control de Registros',
-  ogTitle: 'STC - Control de Registros',
-  favicon: '/faviconstc.ico'
-})
 
+// ── data fetches ───────────────────────────────────────────
+const { data: discordInfo, pending: discordPending } = await useFetch(
+  'https://stc.snuuy.com/webhooks/discord-info',
+  {
+    method: 'GET',
+    key: 'discord-info',
+    getCachedData(key) { return nuxtApp.payload.data[key] || nuxtApp.static.data[key] },
+  },
+)
 
+const { data: membersTrend, pending: membersTrendPending } = await useFetch(
+  '/api/discord-users/trend',
+  { lazy: true, default: () => ({ total: 0, deltaPct: 0, series: [] as number[] }) },
+)
 
+const { data: meetingsTrend, pending: meetingsTrendPending } = await useFetch(
+  '/api/meetings/trend',
+  { lazy: true, default: () => ({ total: 0, delta: 0, series: [] as number[] }) },
+)
 
-// const { data: botStatus, pending: statusPending } = await useFetch('https://stc.snuuy.com/health', {
-//   method: 'GET',
-//   key: 'bot-status',
-//   getCachedData(key){
-//     return nuxtApp.payload.data[key] || nuxtApp.static.data[key]
-//   }
-// })
+const { data: botStatus, pending: statusPending } = useBotStatus()
+const { data: logs, pending: logsPending } = await useFetch('/api/logs', { query: { limit: 6 }, lazy: true })
 
-const { data: meetingCount, pending: meetingsPending } = await useFetch('/api/meetings/count', { lazy: true })
-const {data: botStatus, pending: statusPending} = useBotStatus()
-
-
-const {data: logs, pending: logsPending} = await useFetch('/api/logs', {
-  query: {limit: 5},
-  lazy: true
-})
-
-type Period = 'daily' | 'weekly' | 'monthly'
-const period = ref<Period>('daily')
-
+// ── chart period state ────────────────────────────────────
+type Period = 'diario' | 'semanal' | 'mensual'
+const period    = ref<Period>('diario')
 const chartFrom = ref('')
-const chartTo = ref('')
+const chartTo   = ref('')
 
-function clearChartDates() {
-  chartFrom.value = ''
-  chartTo.value = ''
-}
+const periodMap: Record<Period, string> = { diario: 'daily', semanal: 'weekly', mensual: 'monthly' }
 
 const { data: stats, pending: statsPending } = useFetch('/api/logs/stats', {
   query: computed(() => ({
-    period: period.value,
+    period: periodMap[period.value],
     ...(chartFrom.value ? { from: chartFrom.value } : {}),
-    ...(chartTo.value ? { to: chartTo.value } : {}),
+    ...(chartTo.value   ? { to:   chartTo.value   } : {}),
   })),
   lazy: true,
+  default: () => [],
 })
 
-const periodLabels: Record<Period, string> = {
-  daily: 'Diario',
-  weekly: 'Semanal',
-  monthly: 'Mensual',
-}
-
-const colorMode = useColorMode()
-
-// Primary RGB per mode — matches CSS variables in main.css
-const primaryRgb = computed(() =>
-  colorMode.value === 'dark' ? '221, 170, 51' : '199, 94, 48'
+const chartData = computed(() =>
+  (stats.value || []).map((e: any) => ({ label: e.date, value: e.count })),
 )
 
-const chartData = computed(() => {
-  const entries = stats.value || []
-  const rgb = primaryRgb.value
-  return {
-    labels: entries.map((e: any) => e.date),
-    datasets: [{
-      data: entries.map((e: any) => e.count),
-      borderColor: `rgb(${rgb})`,
-      borderWidth: 2,
-      fill: true,
-      backgroundColor: (context: any) => {
-        const chart = context.chart
-        const { ctx, chartArea } = chart
-        if (!chartArea) return `rgba(${rgb}, 0.1)`
-        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-        gradient.addColorStop(0, `rgba(${rgb}, 0.2)`)
-        gradient.addColorStop(1, `rgba(${rgb}, 0)`)
-        return gradient
-      },
-      tension: 0.4,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      pointBackgroundColor: `rgb(${rgb})`,
-      pointBorderColor: 'transparent',
-    }],
-  }
-})
-
-const chartOptions = computed(() => {
-  const isDark = colorMode.value === 'dark'
-  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
-  const tickColor = isDark ? '#9ca3af' : '#6b7280'
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx: any) => ` ${ctx.parsed.y} registro${ctx.parsed.y !== 1 ? 's' : ''}`,
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: { color: gridColor },
-        ticks: { color: tickColor, font: { size: 11 } },
-      },
-      y: {
-        grid: { color: gridColor },
-        ticks: { color: tickColor, font: { size: 11 }, precision: 0 },
-        beginAtZero: true,
-      },
-    },
-  }
-})
-
-const quickStats = computed(() => [
-  {
-    label: 'Nombre del Servidor',
-    value: discordInfo.value?.guildName,
-    pending: discordPending.value,
-    icon: 'i-heroicons-server-stack-20-solid',
-    color: 'text-primary-500'
-  },
-  {
-    label: 'Miembros Totales',
-    value: discordInfo.value?.memberCount?.toLocaleString(),
-    pending: discordPending.value,
-    icon: 'i-heroicons-users-20-solid',
-    color: 'text-blue-500'
-  },
-  {
-    label: 'Meetings Registrados',
-    value: meetingCount.value?.count,
-    pending: meetingsPending.value,
-    icon: 'i-heroicons-video-camera-20-solid',
-    color: 'text-green-500'
-  },
-  {
-    label: 'Estado del Bot',
-    value: botStatus.value?.status === 'UP' ? 'ACTIVO' : 'OFFLINE',
-    pending: statusPending.value,
-    icon: 'i-heroicons-signal-20-solid',
-    color: botStatus.value?.status === 'UP' ? 'text-green-500' : 'text-red-500'
-  },
-])
+// ── derived UI helpers ────────────────────────────────────
+const botIsUp = computed(() => botStatus.value?.status === 'UP')
+const discordConnected = computed(() => botStatus.value?.discord === 'Connected')
 
 function formatUptime(seconds: number) {
-  if (!seconds) return '0s'
-  const d = Math.floor(seconds / (3600 * 24))
-  const h = Math.floor((seconds % (3600 * 24)) / 3600)
+  if (!seconds) return '0m'
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
   const m = Math.floor((seconds % 3600) / 60)
-
-  const parts = []
+  const parts: string[] = []
   if (d > 0) parts.push(`${d}d`)
   if (h > 0) parts.push(`${h}h`)
-  if (m > 0) parts.push(`${m}m`)
-  return parts.join(' ') || '0m'
+  if (m > 0 || parts.length === 0) parts.push(`${m}m`)
+  return parts.join(' ')
 }
 
-function formatFullDate(date: string | Date) {
-  if (!date) return 'n/a'
-  const d = new Date(date)
-  const datePart = d.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit'
-  })
-  const timePart = d.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
+function formatTime(date: string | Date) {
+  if (!date) return '—'
+  return new Date(date).toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', hour12: true,
   }).toLowerCase().replace(' ', '')
-
-  return `${datePart} ${timePart}`
 }
-
-function formatDateOnly(date: string | Date) {
-  if (!date) return 'n/a'
+function formatDateShort(date: string | Date) {
+  if (!date) return ''
   return new Date(date).toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit'
+    day: '2-digit', month: '2-digit', year: '2-digit',
   })
 }
-
 </script>
 
 <template>
-  <div v-if="statusPending">
-    loading...
-  </div>
-  <div v-else class="space-y-8">
-    <!-- Quick Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <UCard v-for="stat in quickStats" :key="stat.label" class="dark:bg-neutral-900/50 dark:border-neutral-800">
-        <div class="flex items-center gap-4">
-          <div :class="`p-3 rounded-lg ${stat.color} bg-opacity-10`">
-            <UIcon :name="stat.icon" :class="`w-6 h-6 ${stat.color}`"/>
-          </div>
-          <div class="flex-1 overflow-hidden">
-            <p class="text-sm text-neutral-400 font-medium">{{ stat.label }}</p>
-            <USkeleton v-if="stat.pending" class="h-6 w-24 mt-1"/>
-            <p v-else class="text-xl font-bold tracking-tight truncate">{{ stat.value || '0' }}</p>
-          </div>
+  <!-- ── Console status strip ────────────────────────────── -->
+  <section class="stc-panel stc-console">
+    <div class="stc-cseg identity">
+      <div class="stc-id-glyph">
+        <UIcon name="i-lucide-server" class="w-5 h-5" />
+      </div>
+      <div class="min-w-0">
+        <div class="stc-display truncate" style="font-size:24px; letter-spacing:.02em; text-transform:uppercase">
+          <USkeleton v-if="discordPending" class="h-5 w-44" />
+          <template v-else>{{ discordInfo?.guildName ?? 'STC' }}</template>
         </div>
-      </UCard>
+        <div class="stc-mono truncate" style="font-size:13px; color:var(--dim); margin-top:2px">
+          <USkeleton v-if="discordPending || meetingsTrendPending" class="h-3 w-36 mt-1" />
+          <template v-else>
+            {{ (discordInfo?.memberCount ?? membersTrend.total).toLocaleString() }} miembros · {{ meetingsTrend.total.toLocaleString() }} meetings
+          </template>
+        </div>
+      </div>
     </div>
 
-    <!-- Registration Chart -->
-    <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
-      <template #header>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 class="font-semibold text-neutral-800 dark:text-neutral-200">Registros por período</h3>
-          <div class="flex flex-wrap items-end gap-3">
-            <!-- Grouping toggles -->
-            <div class="flex gap-1">
-              <UButton
-                v-for="p in (['daily', 'weekly', 'monthly'] as Period[])"
-                :key="p"
-                size="xs"
-                :variant="period === p ? 'solid' : 'ghost'"
-                :color="period === p ? 'primary' : 'neutral'"
-                @click="period = p"
-              >
-                {{ periodLabels[p] }}
-              </UButton>
-            </div>
+    <div class="stc-cseg">
+      <span class="stc-eyebrow">Estado del Bot</span>
+      <span class="stc-cval" :class="{ green: botIsUp }">
+        <USkeleton v-if="statusPending" class="h-4 w-16" />
+        <template v-else>
+          <span v-if="botIsUp" class="stc-dot green" />
+          <span v-else class="stc-dot red" />
+          {{ botIsUp ? 'ACTIVO' : 'OFFLINE' }}
+        </template>
+      </span>
+    </div>
 
-            <div class="h-4 w-px bg-cream-400 dark:bg-neutral-700 hidden sm:block self-center" />
+    <div class="stc-cseg">
+      <span class="stc-eyebrow">Uptime</span>
+      <span class="stc-cval">
+        <USkeleton v-if="statusPending" class="h-4 w-12" />
+        <template v-else>{{ formatUptime(botStatus?.uptime) }}</template>
+      </span>
+    </div>
 
-            <!-- Date range pickers -->
-            <div class="flex items-end gap-2">
-              <div class="flex flex-col gap-1">
-                <span class="text-xs text-neutral-500">Desde</span>
-                <UInput v-model="chartFrom" type="date" size="xs" class="w-32" />
-              </div>
-              <div class="flex flex-col gap-1">
-                <span class="text-xs text-neutral-500">Hasta</span>
-                <UInput v-model="chartTo" type="date" size="xs" class="w-32" />
-              </div>
-              <UButton
-                v-if="chartFrom || chartTo"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-heroicons-x-mark"
-                class="mb-0.5"
-                @click="clearChartDates"
-              />
-            </div>
+    <div class="stc-cseg">
+      <span class="stc-eyebrow">Discord</span>
+      <span class="stc-cval" :class="{ green: discordConnected }">
+        <USkeleton v-if="statusPending" class="h-4 w-20" />
+        <template v-else>
+          <span v-if="discordConnected" class="stc-dot green" />
+          <span v-else class="stc-dot red" />
+          {{ discordConnected ? 'Conectado' : 'Desconectado' }}
+        </template>
+      </span>
+    </div>
+
+    <div class="stc-cseg">
+      <span class="stc-eyebrow">Servicio</span>
+      <span class="stc-cval" :class="{ green: botIsUp }">
+        <USkeleton v-if="statusPending" class="h-4 w-20" />
+        <template v-else>
+          <span v-if="botIsUp" class="stc-dot green" />
+          <span v-else class="stc-dot red" />
+          {{ botIsUp ? 'En línea' : 'Fuera de servicio' }}
+        </template>
+      </span>
+    </div>
+  </section>
+
+  <!-- ── Chart + metric rail ─────────────────────────────── -->
+  <section class="stc-grid-main">
+
+    <!-- Chart panel -->
+    <div class="stc-panel stc-chart-panel">
+      <div class="flex items-start justify-between flex-wrap" style="gap:16px">
+        <div>
+          <div class="stc-panel-title">Registros por período</div>
+          <div class="stc-eyebrow" style="margin-top:5px">Nuevos registros a meetings</div>
+        </div>
+        <div class="flex items-end flex-wrap" style="gap:14px">
+          <div class="stc-seg">
+            <button
+              v-for="p in (['diario','semanal','mensual'] as Period[])"
+              :key="p"
+              :class="{ on: period === p }"
+              @click="period = p"
+            >
+              {{ p.charAt(0).toUpperCase() + p.slice(1) }}
+            </button>
           </div>
+          <div class="stc-dfield">
+            <label>Desde</label>
+            <input v-model="chartFrom" type="date" />
+          </div>
+          <div class="stc-dfield">
+            <label>Hasta</label>
+            <input v-model="chartTo" type="date" />
+          </div>
+          <button
+            v-if="chartFrom || chartTo"
+            class="stc-top-icon"
+            style="width:30px; height:30px; border-radius:7px; margin-bottom:1px"
+            @click="chartFrom = ''; chartTo = ''"
+            title="Limpiar filtro"
+          >
+            <UIcon name="i-lucide-x" class="w-3.5 h-3.5" />
+          </button>
         </div>
-      </template>
+      </div>
 
-      <div class="h-64">
-        <div v-if="statsPending" class="h-full">
-          <USkeleton class="w-full h-full rounded-lg" />
+      <div v-if="statsPending" style="margin-top:16px">
+        <USkeleton class="w-full" style="height:320px; border-radius:8px" />
+      </div>
+      <div v-else-if="!chartData.length" class="flex items-center justify-center" style="height:320px; margin-top:16px">
+        <span style="font-size:13px; color:var(--faint)">No hay datos para este período.</span>
+      </div>
+      <ClientOnly v-else>
+        <StcChart :data="chartData" :height="320" />
+      </ClientOnly>
+    </div>
+
+    <!-- Right rail: metric tiles -->
+    <div class="stc-rail">
+      <div class="stc-panel stc-tile">
+        <div class="stc-tile-head">
+          <span class="lbl">Miembros Totales</span>
+          <UIcon name="i-lucide-users" class="w-4 h-4" />
         </div>
-        <div v-else-if="!stats?.length" class="flex items-center justify-center h-full text-neutral-500 text-sm">
-          No hay datos para este período.
+        <div class="stc-tile-val">
+          <USkeleton v-if="membersTrendPending" class="h-8 w-24" />
+          <template v-else>{{ membersTrend.total.toLocaleString() }}</template>
         </div>
-        <ClientOnly v-else>
-          <Line :data="chartData" :options="chartOptions" class="h-full! w-full!" />
+        <div class="stc-tile-foot">
+          <USkeleton v-if="membersTrendPending" class="h-5 w-12 rounded-md" />
+          <template v-else>
+            <span class="stc-delta" :class="membersTrend.deltaPct >= 0 ? 'up' : 'down'">
+              <UIcon
+                :name="membersTrend.deltaPct >= 0 ? 'i-lucide-arrow-up-right' : 'i-lucide-arrow-down-right'"
+                class="w-3 h-3"
+              />
+              {{ Math.abs(membersTrend.deltaPct).toFixed(1) }}%
+            </span>
+            <span class="stc-delta-note">vs. semana previa</span>
+          </template>
+        </div>
+        <ClientOnly>
+          <StcSparkline v-if="!membersTrendPending && membersTrend.series.length > 1" :data="membersTrend.series" />
         </ClientOnly>
       </div>
-    </UCard>
 
-    <!-- Bot Health & Performance -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
-        <template #header>
-          <h3 class="font-semibold text-neutral-800 dark:text-neutral-200">Estado del Sistema</h3>
-        </template>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between p-3 rounded-lg bg-cream-300/50 dark:bg-neutral-800/50">
-            <div class="flex items-center gap-3">
-              <UIcon name="i-heroicons-clock-20-solid" class="text-primary-500"/>
-              <span class="text-sm">Tiempo Activo</span>
-            </div>
-            <USkeleton v-if="statusPending" class="h-4 w-16"/>
-            <span v-else class="text-sm font-mono">{{ formatUptime(botStatus?.uptime) }}</span>
-          </div>
-          <div class="flex items-center justify-between p-3 rounded-lg bg-cream-300/50 dark:bg-neutral-800/50">
-            <div class="flex items-center gap-3">
-              <UIcon name="i-heroicons-bolt-20-solid" class="text-primary-500"/>
-              <span class="text-sm">Conexión Discord</span>
-            </div>
-            <USkeleton v-if="statusPending" class="h-4 w-24"/>
-            <span v-else class="text-sm font-mono">{{
-                botStatus?.discord === 'Connected' ? 'Conectado' : 'Desconectado'
-              }}</span>
-          </div>
-          <div class="flex items-center justify-between p-3 rounded-lg bg-cream-300/50 dark:bg-neutral-800/50">
-            <div class="flex items-center gap-3">
-              <UIcon name="i-heroicons-signal-20-solid" class="text-primary-500"/>
-              <span class="text-sm">Servicio</span>
-            </div>
-            <USkeleton v-if="statusPending" class="h-6 w-20"/>
-            <UBadge v-else :color="botStatus?.status === 'UP' ? 'primary' : 'red'" size="sm" variant="soft">
-              {{ botStatus?.status === 'UP' ? 'EN LÍNEA' : 'FUERA DE SERVICIO' }}
-            </UBadge>
-          </div>
+      <div class="stc-panel stc-tile">
+        <div class="stc-tile-head">
+          <span class="lbl">Meetings Registrados</span>
+          <UIcon name="i-lucide-video" class="w-4 h-4" />
         </div>
-      </UCard>
+        <div class="stc-tile-val">
+          <USkeleton v-if="meetingsTrendPending" class="h-8 w-20" />
+          <template v-else>{{ meetingsTrend.total.toLocaleString() }}</template>
+        </div>
+        <div class="stc-tile-foot">
+          <USkeleton v-if="meetingsTrendPending" class="h-5 w-10 rounded-md" />
+          <template v-else>
+            <span class="stc-delta" :class="meetingsTrend.delta >= 0 ? 'up' : 'down'">
+              <UIcon
+                :name="meetingsTrend.delta >= 0 ? 'i-lucide-arrow-up-right' : 'i-lucide-arrow-down-right'"
+                class="w-3 h-3"
+              />
+              {{ Math.abs(meetingsTrend.delta) }}
+            </span>
+            <span class="stc-delta-note">en los últimos 7 días</span>
+          </template>
+        </div>
+        <ClientOnly>
+          <StcSparkline v-if="!meetingsTrendPending && meetingsTrend.series.length > 1" :data="meetingsTrend.series" />
+        </ClientOnly>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Activity feed ───────────────────────────────────── -->
+  <section class="stc-panel stc-act-panel">
+    <div class="stc-act-head">
+      <h2 class="stc-panel-title">Actividad Reciente</h2>
+      <NuxtLink to="/logs" class="stc-link-all">
+        Ver Todo
+        <UIcon name="i-lucide-arrow-right" class="w-3 h-3" />
+      </NuxtLink>
     </div>
 
-    <!-- Últimas Actividades -->
-    <UCard class="dark:bg-neutral-900/50 dark:border-neutral-800">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-neutral-800 dark:text-neutral-200">Actividad Reciente</h3>
-          <UButton to="/meetings" color="neutral" variant="ghost" size="sm" icon="i-heroicons-arrow-right-20-solid">Ver
-            Todo
-          </UButton>
+    <!-- Skeleton -->
+    <div v-if="logsPending" class="stc-feed">
+      <div v-for="i in 6" :key="i" class="stc-fitem">
+        <USkeleton class="w-[34px] h-[34px] rounded-lg flex-shrink-0" />
+        <div class="flex-1 space-y-1.5">
+          <USkeleton class="h-3.5 w-3/4 rounded" />
+          <USkeleton class="h-3 w-24 rounded" />
         </div>
-      </template>
-
-      <div class="divide-y divide-cream-400 dark:divide-neutral-800">
-        <div v-if="logsPending" class="space-y-4 py-4">
-          <div v-for="i in 3" :key="i" class="flex items-center gap-4">
-            <USkeleton class="h-10 w-10 rounded-lg"/>
-            <div class="flex-1 space-y-2">
-              <USkeleton class="h-4 w-full"/>
-              <USkeleton class="h-3 w-24"/>
-            </div>
-          </div>
+        <div class="flex flex-col items-end gap-1">
+          <USkeleton class="h-3 w-12 rounded" />
+          <USkeleton class="h-3 w-16 rounded" />
         </div>
-
-        <div v-else-if="!logs?.length" class="py-8 text-center text-neutral-500 text-sm">
-          No hay actividad reciente.
-        </div>
-
-        <template v-else>
-          <div v-for="log in logs" :key="log._id"
-               class="py-4 flex items-center justify-between first:pt-0 last:pb-0">
-            <div class="flex items-center gap-4">
-              <UAvatar
-                  v-if="log.userId"
-                  :src="log.userId.avatarUrl ?? undefined"
-                  :alt="log.userId.username"
-                  size="sm"
-                  :ui="{ rounded: 'rounded-lg' }"
-              />
-              <div v-else class="p-2 rounded-lg bg-cream-300 dark:bg-neutral-800 text-neutral-500">
-                <UIcon name="i-heroicons-user"/>
-              </div>
-              <div>
-                <p class="text-sm font-medium">
-                  <span class="text-primary-500" v-if="log.userId">{{
-                      log.userId.username
-                    }}</span>
-                  <span class="text-primary-500" v-else>Alguien</span>
-                  <span class="text-neutral-400"> se registró para </span>
-                  <span class="text-neutral-800 dark:text-neutral-200 font-semibold">{{ log.zoomLogId?.name || log.zoomLogId?.meetingId || 'un meeting' }}</span>
-                  <UBadge v-if="(log.count ?? 1) > 1" :variant="badgeVariant" color="warning" size="xs" class="ml-1 font-mono">
-                    {{ log.count }}x
-                  </UBadge>
-                  <UBadge v-if="log.zoomLogId?.occurredAt" :variant="badgeVariant" color="primary" size="xs" class="ml-1">
-                    {{ formatDateOnly(log.zoomLogId.occurredAt) }}
-                  </UBadge>
-                </p>
-                <div class="mt-1 flex items-center gap-1.5">
-                  <UIcon name="i-heroicons-clock" class="w-3.5 h-3.5 text-neutral-500" />
-                  <span class="text-xs text-neutral-500 font-medium">
-                    Registrado el {{ formatFullDate(log.occurredAt) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <UButton v-if="log.zoomLogId?._id" :to="`/meetings/${log.zoomLogId._id}`" color="neutral" variant="ghost" size="sm"
-                       icon="i-heroicons-chevron-right"/>
-            </div>
-          </div>
-        </template>
       </div>
-    </UCard>
-  </div>
+    </div>
 
+    <!-- Empty -->
+    <div v-else-if="!logs?.length" class="py-8 text-center" style="font-size:13px; color:var(--faint)">
+      No hay actividad reciente.
+    </div>
+
+    <!-- Feed -->
+    <div v-else class="stc-feed">
+      <div v-for="log in logs" :key="log._id" class="stc-fitem">
+        <div class="stc-fav">
+          <img
+            v-if="log.userId?.avatarUrl"
+            :src="log.userId.avatarUrl"
+            :alt="log.userId.username"
+          />
+          <template v-else>{{ (log.userId?.username ?? '?').charAt(0).toUpperCase() }}</template>
+        </div>
+        <div class="stc-fbody">
+          <div class="fl">
+            <b>{{ log.userId?.username ?? 'Alguien' }}</b>
+            se registró para
+            <span class="tag">{{ log.zoomLogId?.name || log.zoomLogId?.meetingId || 'un meeting' }}</span>
+          </div>
+          <div class="stc-ftype">Registro de meeting</div>
+        </div>
+        <div class="stc-ftime">
+          {{ formatTime(log.occurredAt) }}
+          <span class="d">{{ formatDateShort(log.occurredAt) }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
 </template>
+
+<style scoped>
+.stc-grid-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.92fr) minmax(282px, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+.stc-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+@media (max-width: 1080px) {
+  .stc-grid-main { grid-template-columns: 1fr; }
+  .stc-rail { flex-direction: row; }
+}
+@media (max-width: 720px) {
+  .stc-rail { flex-direction: column; }
+}
+</style>

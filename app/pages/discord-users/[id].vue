@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const badgeVariant = useBadgeVariant()
 const route = useRoute()
 const userId = route.params.id
 const toast = useToast()
@@ -14,6 +13,22 @@ const {
   refresh: refreshJournal,
 } = useFetch<JournalEntry[]>(`/api/discord-users/${userId}/journal`, { default: () => [] })
 
+import {
+  ACTION_TYPE_LABELS_ES,
+  ALPHA_SIGNAL_LABELS_ES,
+  ALPHA_SIGNAL_TONE,
+  CATEGORY_LABELS_ES,
+  DELTA_SCHEMA_VERSION,
+  PRIORITY_LABELS_ES,
+  PRIORITY_TONE,
+  actionTypeLabel,
+  categoryLabel,
+  type AlphaFitSignal,
+  type BestFitCategory,
+  type DeltaAnalysisResult,
+  type Priority,
+} from '#shared/deltaAnalysis'
+
 interface JournalEntry {
   _id: string
   discordUserId: string
@@ -27,6 +42,43 @@ interface JournalEntry {
   markedForDeletion: boolean
   markedForDeletionAt?: string | null
   markedForDeletionBy?: string | null
+  analysisStatus?: 'none' | 'pending' | 'done' | 'error'
+  analysisResult?: DeltaAnalysisResult | null
+  analyzedAt?: string | null
+  analysisError?: string | null
+  followUpStatus?: 'pending' | 'done' | null
+  followUpPriority?: Priority | null
+  recontactDate?: string | null
+  followUpDoneAt?: string | null
+  followUpDoneBy?: string | null
+}
+
+/** Entries analyzed before the Delta rewrite carry the old pain-point shape. */
+function isDeltaResult(entry: JournalEntry): boolean {
+  return entry.analysisResult?.schema_version === DELTA_SCHEMA_VERSION
+}
+
+function formatDay(date?: string | null) {
+  if (!date) return null
+  return new Date(date).toLocaleDateString('es-ES', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  })
+}
+
+async function copyMessage(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.add({ title: 'Mensaje copiado', color: 'success' })
+  } catch {
+    toast.add({ title: 'No se pudo copiar el mensaje', color: 'error' })
+  }
+}
+
+const ENGAGEMENT_TONE: Record<string, string> = {
+  success: 'green',
+  warning: 'gold',
+  error: 'red',
+  neutral: 'neutral',
 }
 
 const journalType = ref<'text' | 'image'>('text')
@@ -39,8 +91,8 @@ const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 const journalTypeItems = [
-  { value: 'text', label: 'Texto', icon: 'i-heroicons-document-text' },
-  { value: 'image', label: 'Imagen', icon: 'i-heroicons-photo' },
+  { value: 'text', label: 'Texto', icon: 'i-lucide-file-text' },
+  { value: 'image', label: 'Imagen', icon: 'i-lucide-image' },
 ]
 
 function onFilePick(e: Event) {
@@ -154,17 +206,58 @@ async function approveDelete(entry: JournalEntry) {
   }
 }
 
+const analyzingId = ref<string | null>(null)
+
+async function analyzeEntry(entry: JournalEntry) {
+  analyzingId.value = entry._id
+  try {
+    await $fetch(`/api/discord-users/${userId}/journal/${entry._id}/analyze`, { method: 'POST' })
+    await refreshJournal()
+    toast.add({ title: 'Conversación analizada', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'Error al analizar', description: e?.statusMessage || e?.message || '', color: 'error' })
+  } finally {
+    analyzingId.value = null
+  }
+}
+
+// Per-user rollup: which conversation categories keep coming up for this
+// member, counting a thread once per distinct category it carries.
+const categoryRollup = computed(() => {
+  const map = new Map<BestFitCategory, { category: BestFitCategory; count: number; primaryCount: number }>()
+  for (const entry of journal.value ?? []) {
+    if (entry.analysisStatus !== 'done' || !isDeltaResult(entry)) continue
+    const result = entry.analysisResult!
+    const cats = new Set<BestFitCategory>([
+      result.best_fit_category,
+      ...(result.additional_categories ?? []),
+    ])
+    for (const cat of cats) {
+      const existing = map.get(cat) ?? { category: cat, count: 0, primaryCount: 0 }
+      existing.count++
+      if (cat === result.best_fit_category) existing.primaryCount++
+      map.set(cat, existing)
+    }
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count)
+})
+
+/** The open follow-up for this member, if any — surfaced above the timeline. */
+const openFollowUps = computed(() =>
+  (journal.value ?? []).filter(e => e.followUpStatus === 'pending' && isDeltaResult(e)),
+)
+
 useSeoMeta({
   title: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
   description: computed(() => user.value ? `Perfil de ${user.value.username} en el Stock Trading Club.` : 'Perfil de usuario.'),
   ogTitle: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
 })
 
-const colorMap: Record<string, any> = {
-  'Alpha.': 'warning',
-  'Alpha': 'warning',
-  'Delta': 'info',
-  'Delta.': 'info',
+const roleClass: Record<string, string> = {
+  'Alpha.': 'gold',
+  'Alpha': 'gold',
+  'Delta': 'blue',
+  'Delta.': 'blue',
 }
 
 const engagement = computed(() => {
@@ -249,13 +342,13 @@ const heatmapMax = computed(() => {
 })
 
 function cellClass(cell: HeatmapCell): string {
-  if (!cell.date) return 'bg-transparent'
-  if (cell.count === 0) return 'bg-gray-100 dark:bg-gray-800'
+  if (!cell.date) return 'hm-void'
+  if (cell.count === 0) return 'hm-0'
   const pct = cell.count / heatmapMax.value
-  if (pct < 0.25) return 'bg-primary/20'
-  if (pct < 0.5) return 'bg-primary/40'
-  if (pct < 0.75) return 'bg-primary/70'
-  return 'bg-primary'
+  if (pct < 0.25) return 'hm-1'
+  if (pct < 0.5) return 'hm-2'
+  if (pct < 0.75) return 'hm-3'
+  return 'hm-4'
 }
 
 const topChannels = computed(() => {
@@ -277,513 +370,1077 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
   if (!v.duration || v.duration <= 0) return 0
   return Math.min(100, Math.max(0, Math.round((v.timestamp / v.duration) * 100)))
 }
+
+function initial(name?: string) {
+  return (name || '?').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '?'
+}
 </script>
 
 <template>
-  <div class="p-6 max-w-4xl mx-auto">
-    <div class="mb-8 flex justify-between items-center">
-      <UButton to="/discord-users" icon="i-heroicons-arrow-left" color="neutral" variant="ghost">Volver al directorio</UButton>
-    </div>
+  <div class="up-page">
+    <NuxtLink to="/discord-users" class="stc-link-all" style="align-self:flex-start">
+      <UIcon name="i-lucide-arrow-left" class="w-3.5 h-3.5" />
+      Volver al directorio
+    </NuxtLink>
 
-    <div v-if="pending" class="space-y-6">
-      <UCard>
-        <div class="flex items-center gap-4">
-          <USkeleton class="h-16 w-16 rounded-lg" />
-          <div class="space-y-2">
-            <USkeleton class="h-6 w-48" />
-            <USkeleton class="h-4 w-32" />
+    <!-- Carga -->
+    <template v-if="pending">
+      <USkeleton class="h-40 w-full rounded-[10px]" />
+      <USkeleton class="h-64 w-full rounded-[10px]" />
+    </template>
+
+    <!-- Error -->
+    <section v-else-if="error" class="stc-panel up-alert">
+      <UIcon name="i-lucide-circle-alert" class="w-6 h-6" />
+      <div>
+        <div class="up-alert-t">Usuario no encontrado</div>
+        <p class="up-alert-p">{{ error.message }}</p>
+        <NuxtLink to="/discord-users" class="stc-btn sm" style="margin-top:14px">Volver a la lista</NuxtLink>
+      </div>
+    </section>
+
+    <template v-else-if="user">
+      <!-- ── Cabecera de perfil ────────────────────────────── -->
+      <section class="stc-panel up-hero">
+        <div class="up-av">
+          <img v-if="user.avatarUrl" :src="user.avatarUrl" :alt="user.username">
+          <template v-else>{{ initial(user.username) }}</template>
+        </div>
+
+        <div class="up-hero-body">
+          <div class="up-idline">
+            <h1 class="up-name">{{ user.username }}</h1>
+            <span class="stc-badge" :class="ENGAGEMENT_TONE[engagement.color]">
+              <span v-if="engagement.state === 'active'" class="stc-dot green" />
+              {{ engagement.label }}
+            </span>
+            <span v-if="user.removedAt" class="stc-badge red">
+              <UIcon name="i-lucide-log-out" class="w-3 h-3" />
+              Eliminado
+            </span>
+          </div>
+
+          <div class="up-subline stc-mono">
+            <span class="stc-code up-id">{{ user._id }}</span>
+            <template v-if="user.joinedAt">
+              <span class="up-sep">·</span>
+              <span :title="new Date(user.joinedAt).toLocaleString('es-ES')">
+                <UIcon name="i-lucide-user-plus" class="w-3.5 h-3.5" />
+                Miembro {{ formatRelativeTime(user.joinedAt) }}
+              </span>
+            </template>
+            <template v-if="user.removedAt">
+              <span class="up-sep">·</span>
+              <span :title="new Date(user.removedAt).toLocaleString('es-ES')">
+                <UIcon name="i-lucide-log-out" class="w-3.5 h-3.5" />
+                Eliminado {{ formatRelativeTime(user.removedAt) }}
+              </span>
+            </template>
+          </div>
+
+          <div v-if="user.roles?.length" class="up-roles">
+            <span
+              v-for="role in user.roles"
+              :key="role"
+              class="stc-badge"
+              :class="roleClass[role] || 'neutral'"
+            >{{ role }}</span>
+          </div>
+
+          <div style="margin-top:16px">
+            <a :href="`discord://-/users/${user._id}`" class="stc-btn sm">
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width:15px;height:15px;flex-shrink:0">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.055 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.19.372-.287a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.097.246.193.373.287a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+              </svg>
+              Contactar en Discord
+            </a>
           </div>
         </div>
-      </UCard>
-      <USkeleton class="h-64 w-full" />
-    </div>
+      </section>
 
-    <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg text-center">
-      <UIcon name="i-heroicons-exclamation-circle" class="text-4xl text-red-500 mb-2" />
-      <h2 class="text-xl font-bold text-red-700 dark:text-red-400">Usuario no encontrado</h2>
-      <p class="text-red-600 dark:text-red-300 mt-1">{{ error.message }}</p>
-      <UButton to="/discord-users" class="mt-4" color="neutral">Volver a la lista</UButton>
-    </div>
-
-    <div v-else-if="user" class="space-y-6">
-      <!-- Profile Header -->
-      <UCard>
-        <div class="flex flex-col md:flex-row md:items-center gap-6">
-          <UAvatar
-            :src="user.avatarUrl ?? undefined"
-            :alt="user.username"
-            size="xl"
-            :ui="{ rounded: 'rounded-2xl' }"
-            class="ring-4 ring-primary/10"
-          />
-          <div class="flex-1">
-            <div class="flex items-center gap-3 flex-wrap">
-              <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ user.username }}</h1>
-              <UBadge :color="engagement.color" :variant="badgeVariant" size="md">
-                {{ engagement.label }}
-              </UBadge>
-              <UBadge
-                v-if="user.removedAt"
-                color="error"
-                variant="outline"
-                size="md"
-                icon="i-heroicons-arrow-right-on-rectangle"
-              >
-                Eliminado
-              </UBadge>
-              <UBadge color="neutral" :variant="badgeVariant" size="sm">ID: {{ user._id }}</UBadge>
-            </div>
-            <div v-if="user.joinedAt || user.removedAt" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
-              <UTooltip v-if="user.joinedAt" :text="new Date(user.joinedAt).toLocaleString('es-ES')">
-                <span class="flex items-center gap-1">
-                  <UIcon name="i-heroicons-user-plus" class="text-gray-400" />
-                  Miembro {{ formatRelativeTime(user.joinedAt) }}
-                </span>
-              </UTooltip>
-              <UTooltip v-if="user.removedAt" :text="new Date(user.removedAt).toLocaleString('es-ES')">
-                <span class="flex items-center gap-1">
-                  <UIcon name="i-heroicons-arrow-right-on-rectangle" class="text-gray-400" />
-                  Eliminado {{ formatRelativeTime(user.removedAt) }}
-                </span>
-              </UTooltip>
-            </div>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <UBadge
-                v-for="role in user.roles"
-                :key="role"
-                :color="colorMap[role] || 'neutral'"
-                :variant="colorMap[role] ? 'subtle' : 'soft'"
-                class="capitalize"
-              >
-                {{ role }}
-              </UBadge>
-            </div>
-          </div>
-        </div>
-      </UCard>
-
-      <!-- Engagement Card -->
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2 font-bold">
-            <UIcon name="i-heroicons-chart-bar" class="text-primary" />
+      <!-- ── Actividad ─────────────────────────────────────── -->
+      <section class="stc-panel">
+        <div class="stc-panel-head">
+          <h2 class="stc-panel-title">
+            <UIcon name="i-lucide-activity" class="w-[18px] h-[18px]" />
             Actividad
-          </div>
-        </template>
+          </h2>
+        </div>
 
-        <!-- Three stat tiles -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="p-4 rounded-xl bg-primary/5 border border-primary/10">
-            <div class="text-xs font-bold uppercase tracking-wider text-primary/70">Reuniones</div>
-            <div class="mt-1 flex items-baseline gap-2">
-              <span class="text-3xl font-black text-primary">{{ user.meetingCount }}</span>
-              <span class="text-xs text-gray-500">total</span>
-            </div>
-            <div v-if="user.lastMeetingAt" class="text-xs text-gray-500 mt-1">
-              Última: {{ new Date(user.lastMeetingAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }}
-            </div>
-            <div v-else class="text-xs text-gray-400 mt-1">Sin reuniones</div>
-          </div>
-
-          <div class="p-4 rounded-xl bg-info/5 border border-info/10">
-            <div class="text-xs font-bold uppercase tracking-wider text-info/70">Mensajes</div>
-            <div v-if="activityPending">
-              <USkeleton class="h-8 w-16 mt-1" />
-            </div>
-            <div v-else class="mt-1 flex items-baseline gap-2">
-              <span class="text-3xl font-black text-info">{{ activity?.totals?.last30 ?? 0 }}</span>
-              <span class="text-xs text-gray-500">30d</span>
-            </div>
-            <div v-if="!activityPending && messagesDelta" class="text-xs mt-1 flex items-center gap-1">
-              <UIcon
-                :name="messagesDelta.up ? 'i-heroicons-arrow-trending-up' : 'i-heroicons-arrow-trending-down'"
-                :class="messagesDelta.up ? 'text-green-500' : 'text-red-500'"
-              />
-              <span :class="messagesDelta.up ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                {{ messagesDelta.up ? '↑' : '↓' }} {{ messagesDelta.pct }}% vs 30d anteriores
+        <div class="up-pad">
+          <!-- Tres métricas -->
+          <div class="up-stats">
+            <div class="up-stat gold">
+              <span class="stc-eyebrow">Reuniones</span>
+              <span class="up-stat-n">{{ user.meetingCount }}</span>
+              <span class="up-stat-note stc-mono">
+                <template v-if="user.lastMeetingAt">
+                  Última: {{ new Date(user.lastMeetingAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) }}
+                </template>
+                <template v-else>Sin reuniones</template>
               </span>
             </div>
-            <div v-else-if="!activityPending" class="text-xs text-gray-400 mt-1">Sin datos previos</div>
-          </div>
 
-          <div class="p-4 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-            <div class="text-xs font-bold uppercase tracking-wider text-gray-500">Última actividad</div>
-            <div class="mt-1">
-              <UTooltip v-if="lastActive" :text="new Date(lastActive).toLocaleString('es-ES')">
-                <span class="text-2xl font-black text-gray-900 dark:text-white">{{ formatRelativeTime(lastActive) }}</span>
-              </UTooltip>
-              <span v-else class="text-2xl font-black text-gray-400">nunca</span>
-            </div>
-            <div class="text-xs text-gray-500 mt-1">mensajes y reuniones</div>
-          </div>
-        </div>
-
-        <!-- Heatmap -->
-        <div class="mt-6">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300">Actividad 90 días</h3>
-            <div class="flex items-center gap-1 text-xs text-gray-500">
-              <span>Menos</span>
-              <div class="w-3 h-3 rounded-sm bg-gray-100 dark:bg-gray-800" />
-              <div class="w-3 h-3 rounded-sm bg-primary/20" />
-              <div class="w-3 h-3 rounded-sm bg-primary/40" />
-              <div class="w-3 h-3 rounded-sm bg-primary/70" />
-              <div class="w-3 h-3 rounded-sm bg-primary" />
-              <span>Más</span>
-            </div>
-          </div>
-          <div v-if="activityPending">
-            <USkeleton class="h-24 w-full" />
-          </div>
-          <div v-else class="flex gap-1 overflow-x-auto">
-            <div v-for="(col, ci) in heatmap" :key="ci" class="flex flex-col gap-1">
-              <UTooltip v-for="(cell, ri) in col" :key="`${ci}-${ri}`" :text="cell.tooltip || ''">
-                <div
-                  class="w-3.5 h-3.5 rounded-sm relative"
-                  :class="cellClass(cell)"
-                >
-                  <div
-                    v-if="cell.isMeetingDay"
-                    class="absolute inset-0 rounded-sm ring-2 ring-amber-400"
+            <div class="up-stat">
+              <span class="stc-eyebrow">Mensajes · 30d</span>
+              <USkeleton v-if="activityPending" class="h-9 w-16" style="margin:4px 0" />
+              <span v-else class="up-stat-n">{{ activity?.totals?.last30 ?? 0 }}</span>
+              <span v-if="!activityPending && messagesDelta" class="up-stat-note">
+                <span class="stc-delta" :class="messagesDelta.up ? 'up' : 'down'">
+                  <UIcon
+                    :name="messagesDelta.up ? 'i-lucide-arrow-up-right' : 'i-lucide-arrow-down-right'"
+                    class="w-3 h-3"
                   />
-                </div>
-              </UTooltip>
-            </div>
-          </div>
-          <p class="text-xs text-gray-400 mt-2">
-            Seguimiento desde el inicio del sistema — los días vacíos anteriores no son ceros reales.
-          </p>
-        </div>
-
-        <!-- Top channels -->
-        <div v-if="!activityPending && topChannels.length > 1" class="mt-6">
-          <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Canales más activos (30d)</h3>
-          <div class="space-y-2">
-            <div v-for="c in topChannels" :key="c.channelId" class="flex items-center gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between text-sm">
-                  <span class="truncate text-gray-700 dark:text-gray-300">
-                    #{{ c.channelName || c.channelId }}
-                  </span>
-                  <span class="text-gray-500 tabular-nums">{{ c.count }}</span>
-                </div>
-                <div class="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full mt-1 overflow-hidden">
-                  <div
-                    class="h-full bg-primary"
-                    :style="{ width: `${(c.count / topChannelMax) * 100}%` }"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-6">
-          <UButton
-            :to="`/meetings?userId=${user._id}`"
-            icon="i-heroicons-calendar-days"
-            block
-            color="primary"
-          >
-            Ver historial completo
-          </UButton>
-        </div>
-      </UCard>
-
-      <!-- Watched Videos Card -->
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between gap-2 flex-wrap">
-            <div class="flex items-center gap-2 font-bold">
-              <UIcon name="i-heroicons-play-circle" class="text-primary" />
-              Vídeos vistos
-            </div>
-            <UBadge v-if="!watchedPending" color="neutral" :variant="badgeVariant" size="sm">
-              {{ watched?.total ?? 0 }} {{ watched?.total === 1 ? 'vídeo' : 'vídeos' }}
-            </UBadge>
-          </div>
-        </template>
-
-        <div v-if="watchedPending" class="space-y-3">
-          <USkeleton v-for="n in 3" :key="n" class="h-14 w-full" />
-        </div>
-        <div
-          v-else-if="!watched?.recent?.length"
-          class="text-center py-6 text-sm text-gray-400"
-        >
-          Aún no ha visto ningún vídeo.
-        </div>
-        <ul v-else class="space-y-2">
-          <li
-            v-for="video in watched.recent"
-            :key="video._id"
-            class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
-          >
-            <UIcon name="i-heroicons-film" class="text-primary text-xl shrink-0 hidden sm:block" />
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-film" class="text-primary text-base shrink-0 sm:hidden" />
-                <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {{ formatVideoTitle(video.videoKey) }}
-                </div>
-              </div>
-              <div class="flex items-center gap-2 mt-1.5">
-                <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-primary transition-all"
-                    :style="{ width: `${videoProgressPct(video)}%` }"
-                  />
-                </div>
-                <span class="text-xs text-gray-500 tabular-nums shrink-0">
-                  {{ videoProgressPct(video) }}%
+                  {{ messagesDelta.pct }}%
                 </span>
+                <span class="stc-delta-note">vs. 30d previos</span>
+              </span>
+              <span v-else-if="!activityPending" class="up-stat-note stc-mono">Sin datos previos</span>
+            </div>
+
+            <div class="up-stat">
+              <span class="stc-eyebrow">Última actividad</span>
+              <span
+                class="up-stat-n sm"
+                :class="{ muted: !lastActive }"
+                :title="lastActive ? new Date(lastActive).toLocaleString('es-ES') : ''"
+              >
+                {{ lastActive ? formatRelativeTime(lastActive) : 'nunca' }}
+              </span>
+              <span class="up-stat-note stc-mono">mensajes y reuniones</span>
+            </div>
+          </div>
+
+          <!-- Mapa de calor -->
+          <div class="up-block">
+            <div class="up-block-head">
+              <h3 class="up-block-t">Actividad 90 días</h3>
+              <div class="up-legend">
+                <span>Menos</span>
+                <i class="hm-cell hm-0" />
+                <i class="hm-cell hm-1" />
+                <i class="hm-cell hm-2" />
+                <i class="hm-cell hm-3" />
+                <i class="hm-cell hm-4" />
+                <span>Más</span>
               </div>
             </div>
-            <UTooltip :text="new Date(video.updatedAt).toLocaleString('es-ES')">
-              <div class="text-xs text-gray-500 sm:text-right shrink-0 sm:min-w-[6rem]">
-                {{ formatRelativeTime(video.updatedAt) }}
+            <USkeleton v-if="activityPending" class="h-24 w-full" />
+            <div v-else class="up-heatmap">
+              <div v-for="(col, ci) in heatmap" :key="ci" class="up-hcol">
+                <span
+                  v-for="(cell, ri) in col"
+                  :key="`${ci}-${ri}`"
+                  class="hm-cell"
+                  :class="[cellClass(cell), { meeting: cell.isMeetingDay }]"
+                  :title="cell.tooltip || ''"
+                />
               </div>
-            </UTooltip>
+            </div>
+            <p class="up-foot-note">
+              Seguimiento desde el inicio del sistema — los días vacíos anteriores no son ceros reales.
+            </p>
+          </div>
+
+          <!-- Canales -->
+          <div v-if="!activityPending && topChannels.length > 1" class="up-block">
+            <h3 class="up-block-t" style="margin-bottom:12px">Canales más activos (30d)</h3>
+            <div class="up-chans">
+              <div v-for="c in topChannels" :key="c.channelId" class="up-chan">
+                <div class="up-chan-row">
+                  <span class="up-chan-name">#{{ c.channelName || c.channelId }}</span>
+                  <span class="up-chan-n stc-mono">{{ c.count }}</span>
+                </div>
+                <div class="stc-meter" style="margin-top:6px">
+                  <i :style="{ width: `${(c.count / topChannelMax) * 100}%` }" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <NuxtLink :to="`/meetings?userId=${user._id}`" class="stc-btn gold block" style="margin-top:22px">
+            <UIcon name="i-lucide-calendar-days" class="w-4 h-4" />
+            Ver historial completo
+          </NuxtLink>
+        </div>
+      </section>
+
+      <!-- ── Vídeos vistos ─────────────────────────────────── -->
+      <section class="stc-panel">
+        <div class="stc-panel-head">
+          <h2 class="stc-panel-title">
+            <UIcon name="i-lucide-circle-play" class="w-[18px] h-[18px]" />
+            Vídeos vistos
+          </h2>
+          <span v-if="!watchedPending" class="stc-badge neutral stc-mono">
+            {{ watched?.total ?? 0 }} {{ watched?.total === 1 ? 'vídeo' : 'vídeos' }}
+          </span>
+        </div>
+
+        <div v-if="watchedPending" class="up-pad up-stack">
+          <USkeleton v-for="n in 3" :key="n" class="h-14 w-full rounded-[7px]" />
+        </div>
+        <div v-else-if="!watched?.recent?.length" class="stc-empty">
+          <UIcon name="i-lucide-film" />
+          <p>Aún no ha visto ningún vídeo.</p>
+        </div>
+        <ul v-else class="up-pad up-stack">
+          <li v-for="video in watched.recent" :key="video._id" class="up-vid">
+            <span class="up-vid-glyph">
+              <UIcon name="i-lucide-film" class="w-4 h-4" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <div class="up-vid-t">{{ formatVideoTitle(video.videoKey) }}</div>
+              <div class="up-vid-prog">
+                <div class="stc-meter">
+                  <i :style="{ width: `${videoProgressPct(video)}%` }" />
+                </div>
+                <span class="up-vid-pct stc-mono">{{ videoProgressPct(video) }}%</span>
+              </div>
+            </div>
+            <span class="up-vid-time stc-mono" :title="new Date(video.updatedAt).toLocaleString('es-ES')">
+              {{ formatRelativeTime(video.updatedAt) }}
+            </span>
           </li>
         </ul>
-      </UCard>
+      </section>
 
-      <!-- Bitácora (Journal) Card -->
-      <UCard>
-        <template #header>
-          <div class="flex items-center justify-between gap-2 flex-wrap">
-            <div class="flex items-center gap-2 font-bold">
-              <UIcon name="i-heroicons-book-open" class="text-primary" />
-              Bitácora
-            </div>
-            <UBadge v-if="!journalPending" color="neutral" :variant="badgeVariant" size="sm">
-              {{ journal?.length ?? 0 }} {{ journal?.length === 1 ? 'entrada' : 'entradas' }}
-            </UBadge>
-          </div>
-        </template>
+      <!-- ── Bitácora ──────────────────────────────────────── -->
+      <section class="stc-panel">
+        <div class="stc-panel-head">
+          <h2 class="stc-panel-title">
+            <UIcon name="i-lucide-book-open" class="w-[18px] h-[18px]" />
+            Bitácora
+          </h2>
+          <span v-if="!journalPending" class="stc-badge neutral stc-mono">
+            {{ journal?.length ?? 0 }} {{ journal?.length === 1 ? 'entrada' : 'entradas' }}
+          </span>
+        </div>
 
-        <!-- Entry form -->
-        <div v-if="loggedIn" class="mb-6">
-          <div class="flex flex-wrap gap-2 mb-3">
-            <UButton
-              v-for="item in journalTypeItems"
-              :key="item.value"
-              :icon="item.icon"
-              :color="journalType === item.value ? 'primary' : 'neutral'"
-              :variant="journalType === item.value ? 'solid' : 'outline'"
-              size="sm"
-              @click="journalType = item.value as 'text' | 'image'"
-            >
-              {{ item.label }}
-            </UButton>
-          </div>
-
-          <div v-if="journalType === 'text'" class="space-y-3">
-            <UTextarea
-              v-model="journalText"
-              placeholder="Escribe una nota sobre este usuario..."
-              :rows="4"
-              autoresize
-              class="w-full"
-              :ui="{ base: 'w-full' }"
-            />
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-              <p class="text-xs text-gray-500">
-                Se registrará como
-                <span class="font-medium text-gray-700 dark:text-gray-300">{{ session?.user?.username }}</span>
-              </p>
-              <UButton
-                icon="i-heroicons-plus"
-                color="primary"
-                :loading="journalSubmitting"
-                :disabled="!journalText.trim()"
-                @click="submitJournalEntry"
+        <div class="up-pad">
+          <!-- Formulario -->
+          <div v-if="loggedIn" class="up-form">
+            <div class="stc-seg" style="width:fit-content; margin-bottom:12px">
+              <button
+                v-for="item in journalTypeItems"
+                :key="item.value"
+                :class="{ on: journalType === item.value }"
+                @click="journalType = item.value as 'text' | 'image'"
               >
-                Añadir entrada
-              </UButton>
+                <UIcon :name="item.icon" class="w-3.5 h-3.5" style="display:inline-block; vertical-align:-2px; margin-right:5px" />
+                {{ item.label }}
+              </button>
             </div>
-          </div>
-          <div v-else class="space-y-3">
-            <input
-              ref="journalFileInput"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              class="hidden"
-              @change="onFilePick"
-            >
-            <div
-              v-if="!journalFile"
-              class="p-6 rounded-lg bg-gray-50 dark:bg-gray-800/50 border-2 border-dashed border-gray-200 dark:border-gray-700 text-center cursor-pointer hover:border-primary transition-colors"
-              @click="journalFileInput?.click()"
-            >
-              <UIcon name="i-heroicons-cloud-arrow-up" class="text-3xl text-gray-400" />
-              <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                Haz clic para seleccionar una imagen
-              </p>
-              <p class="text-xs text-gray-400 mt-1">
-                PNG, JPG, WebP o GIF · máx. 5MB
-              </p>
-            </div>
-            <div
-              v-else
-              class="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700"
-            >
-              <div class="flex items-center gap-3 min-w-0">
-                <UIcon name="i-heroicons-photo" class="text-primary text-xl shrink-0" />
-                <div class="min-w-0">
-                  <div class="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {{ journalFile.name }}
-                  </div>
-                  <div class="text-xs text-gray-500">
-                    {{ (journalFile.size / 1024).toFixed(1) }} KB
-                  </div>
-                </div>
-              </div>
-              <UButton
-                icon="i-heroicons-x-mark"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                :disabled="journalSubmitting"
-                @click="clearJournalFile"
+
+            <!-- Texto -->
+            <template v-if="journalType === 'text'">
+              <textarea
+                v-model="journalText"
+                class="stc-input up-textarea"
+                rows="4"
+                placeholder="Escribe una nota sobre este usuario…"
               />
-            </div>
-            <div class="flex items-center justify-between gap-2 flex-wrap">
-              <p class="text-xs text-gray-500">
-                Se registrará como
-                <span class="font-medium text-gray-700 dark:text-gray-300">{{ session?.user?.username }}</span>
-              </p>
-              <UButton
-                icon="i-heroicons-arrow-up-tray"
-                color="primary"
-                :loading="journalSubmitting"
-                :disabled="!journalFile"
-                @click="submitJournalEntry"
-              >
-                Subir imagen
-              </UButton>
-            </div>
-          </div>
-        </div>
-        <div v-else class="mb-6 text-sm text-gray-500 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-          Inicia sesión como administrador para añadir entradas.
-        </div>
+              <div class="up-form-foot">
+                <p class="up-form-note">
+                  Se registrará como <b>{{ session?.user?.username }}</b>
+                </p>
+                <button
+                  class="stc-btn gold sm"
+                  :disabled="journalSubmitting || !journalText.trim()"
+                  @click="submitJournalEntry"
+                >
+                  <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+                  {{ journalSubmitting ? 'Guardando…' : 'Añadir entrada' }}
+                </button>
+              </div>
+            </template>
 
-        <!-- Timeline -->
-        <div v-if="journalPending" class="space-y-3">
-          <USkeleton v-for="n in 3" :key="n" class="h-16 w-full" />
-        </div>
-        <div
-          v-else-if="!journal?.length"
-          class="text-center py-8 text-sm text-gray-400"
-        >
-          Aún no hay entradas en la bitácora.
-        </div>
-        <ol v-else class="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-6">
-          <li
-            v-for="entry in journal"
-            :key="entry._id"
-            class="ml-6"
-          >
-            <span class="absolute -left-[9px] flex items-center justify-center w-4 h-4 rounded-full bg-primary ring-4 ring-white dark:ring-gray-900" />
-            <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-              <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
-                <div class="flex items-center gap-2 text-sm">
-                  <UIcon
-                    :name="entry.type === 'image' ? 'i-heroicons-photo' : 'i-heroicons-document-text'"
-                    class="text-primary"
-                  />
-                  <span class="font-bold text-gray-900 dark:text-white">{{ entry.adminUsername }}</span>
+            <!-- Imagen -->
+            <template v-else>
+              <input
+                ref="journalFileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                class="hidden"
+                @change="onFilePick"
+              >
+              <div v-if="!journalFile" class="up-drop" @click="journalFileInput?.click()">
+                <UIcon name="i-lucide-cloud-upload" class="w-7 h-7" />
+                <p class="up-drop-t">Haz clic para seleccionar una imagen</p>
+                <p class="up-drop-p">PNG, JPG, WebP o GIF · máx. 5MB</p>
+              </div>
+              <div v-else class="up-file">
+                <span class="up-file-glyph">
+                  <UIcon name="i-lucide-image" class="w-4 h-4" />
+                </span>
+                <div class="min-w-0 flex-1">
+                  <div class="up-file-n">{{ journalFile.name }}</div>
+                  <div class="up-file-s stc-mono">{{ (journalFile.size / 1024).toFixed(1) }} KB</div>
                 </div>
-                <UTooltip :text="new Date(entry.createdAt).toLocaleString('es-ES')">
-                  <span class="text-xs text-gray-500">{{ formatRelativeTime(entry.createdAt) }}</span>
-                </UTooltip>
+                <button class="stc-icon-btn" :disabled="journalSubmitting" @click="clearJournalFile">
+                  <UIcon name="i-lucide-x" class="w-4 h-4" />
+                </button>
               </div>
-              <p
-                v-if="entry.type === 'text'"
-                class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words"
-              >
-                {{ entry.content }}
-              </p>
-              <a
-                v-else-if="entry.imageUrl"
-                :href="entry.imageUrl"
-                target="_blank"
-                rel="noopener"
-                class="block"
-              >
-                <img
-                  :src="entry.imageUrl"
-                  :alt="entry.content"
-                  class="max-h-80 w-auto rounded-md border border-gray-200 dark:border-gray-700"
-                  loading="lazy"
+              <div class="up-form-foot">
+                <p class="up-form-note">
+                  Se registrará como <b>{{ session?.user?.username }}</b>
+                </p>
+                <button
+                  class="stc-btn gold sm"
+                  :disabled="journalSubmitting || !journalFile"
+                  @click="submitJournalEntry"
                 >
-              </a>
-              <div v-else class="text-xs text-gray-400 italic">Imagen no disponible</div>
-
-              <!-- Deletion mark indicator -->
-              <div
-                v-if="entry.markedForDeletion"
-                class="mt-3 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400"
-              >
-                <UIcon name="i-heroicons-flag" class="shrink-0" />
-                <span>Marcado para eliminar por <strong>{{ entry.markedForDeletionBy }}</strong></span>
+                  <UIcon name="i-lucide-upload" class="w-3.5 h-3.5" />
+                  {{ journalSubmitting ? 'Subiendo…' : 'Subir imagen' }}
+                </button>
               </div>
-
-              <!-- Action buttons -->
-              <div v-if="loggedIn" class="mt-3 flex justify-end gap-2">
-                <UButton
-                  v-if="(session?.user as any)?.role === 'superadmin' && entry.markedForDeletion"
-                  size="xs"
-                  color="error"
-                  variant="soft"
-                  icon="i-heroicons-trash"
-                  :loading="journalActionId === entry._id"
-                  @click="approveDelete(entry)"
-                >
-                  Aprobar eliminación
-                </UButton>
-                <UButton
-                  size="xs"
-                  :color="entry.markedForDeletion ? 'neutral' : 'warning'"
-                  variant="ghost"
-                  :icon="entry.markedForDeletion ? 'i-heroicons-arrow-uturn-left' : 'i-heroicons-flag'"
-                  :loading="journalActionId === entry._id"
-                  @click="toggleMarkForDeletion(entry)"
-                >
-                  {{ entry.markedForDeletion ? 'Desmarcar' : 'Marcar para eliminar' }}
-                </UButton>
-              </div>
-            </div>
-          </li>
-        </ol>
-      </UCard>
-
-      <!-- Technical Info Card -->
-      <UCard>
-        <template #header>
-          <div class="flex items-center gap-2 font-bold">
-            <UIcon name="i-heroicons-fingerprint" class="text-primary" />
-            Información técnica
+            </template>
           </div>
-        </template>
-        <div class="space-y-4">
+          <div v-else class="up-locked">
+            Inicia sesión como administrador para añadir entradas.
+          </div>
+
+          <!-- Resumen de categorías de conversación -->
+          <div v-if="categoryRollup.length" class="up-rollup">
+            <div class="up-rollup-head">
+              <span class="up-rollup-t">
+                <UIcon name="i-lucide-sparkles" class="w-4 h-4" />
+                Categorías recurrentes
+                <span v-if="openFollowUps.length" class="stc-badge gold" style="margin-left:4px">
+                  {{ openFollowUps.length }} seguimiento{{ openFollowUps.length === 1 ? '' : 's' }} abierto{{ openFollowUps.length === 1 ? '' : 's' }}
+                </span>
+              </span>
+              <NuxtLink to="/journal/pain-points" class="up-rollup-link">Ver panel global →</NuxtLink>
+            </div>
+            <div class="up-rollup-cats">
+              <span v-for="row in categoryRollup" :key="row.category" class="stc-badge gold">
+                {{ categoryLabel(row.category) }} · {{ row.count }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Línea de tiempo -->
+          <div v-if="journalPending" class="up-stack" style="margin-top:20px">
+            <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-[7px]" />
+          </div>
+          <div v-else-if="!journal?.length" class="stc-empty" style="padding:36px 24px">
+            <UIcon name="i-lucide-book-open" />
+            <p>Aún no hay entradas en la bitácora.</p>
+          </div>
+          <ol v-else class="up-timeline">
+            <li v-for="entry in journal" :key="entry._id" class="up-tl-item">
+              <span class="up-tl-node" />
+              <div class="up-entry" :class="{ flagged: entry.markedForDeletion }">
+                <div class="up-entry-head">
+                  <span class="up-entry-who">
+                    <UIcon
+                      :name="entry.type === 'image' ? 'i-lucide-image' : 'i-lucide-file-text'"
+                      class="w-3.5 h-3.5"
+                      style="color:var(--gold)"
+                    />
+                    <b>{{ entry.adminUsername }}</b>
+                  </span>
+                  <span class="up-entry-time stc-mono" :title="new Date(entry.createdAt).toLocaleString('es-ES')">
+                    {{ formatRelativeTime(entry.createdAt) }}
+                  </span>
+                </div>
+
+                <p v-if="entry.type === 'text'" class="up-entry-text">{{ entry.content }}</p>
+                <a v-else-if="entry.imageUrl" :href="entry.imageUrl" target="_blank" rel="noopener" class="up-entry-img">
+                  <img :src="entry.imageUrl" :alt="entry.content" loading="lazy">
+                </a>
+                <div v-else class="up-entry-na">Imagen no disponible</div>
+
+                <!-- Marca de eliminación -->
+                <div v-if="entry.markedForDeletion" class="up-flag">
+                  <UIcon name="i-lucide-flag" class="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Marcado para eliminar por <b>{{ entry.markedForDeletionBy }}</b></span>
+                </div>
+
+                <!-- Análisis Delta -->
+                <div
+                  v-if="entry.type === 'image' && entry.analysisStatus === 'done' && isDeltaResult(entry)"
+                  class="up-ai"
+                >
+                  <div class="up-ai-head">
+                    <span class="up-ai-t">
+                      <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                      Análisis de conversación
+                    </span>
+                    <span
+                      v-if="entry.followUpStatus === 'done'"
+                      class="stc-badge green"
+                      :title="entry.followUpDoneBy ? `Hecho por ${entry.followUpDoneBy}` : ''"
+                    >
+                      <UIcon name="i-lucide-check" class="w-3 h-3" />
+                      Seguimiento hecho
+                    </span>
+                  </div>
+
+                  <!-- Clasificación -->
+                  <div class="up-ai-tags">
+                    <span class="stc-badge gold">{{ categoryLabel(entry.analysisResult!.best_fit_category) }}</span>
+                    <span
+                      v-for="cat in entry.analysisResult!.additional_categories"
+                      :key="cat"
+                      class="stc-badge neutral"
+                    >{{ categoryLabel(cat) }}</span>
+                    <span
+                      class="stc-badge"
+                      :class="ALPHA_SIGNAL_TONE[entry.analysisResult!.alpha_fit_signal]"
+                    >
+                      Alpha: {{ ALPHA_SIGNAL_LABELS_ES[entry.analysisResult!.alpha_fit_signal] }}
+                    </span>
+                    <span class="stc-badge" :class="PRIORITY_TONE[entry.analysisResult!.priority]">
+                      Prioridad {{ PRIORITY_LABELS_ES[entry.analysisResult!.priority] }}
+                    </span>
+                  </div>
+
+                  <!-- Lectura forense -->
+                  <p v-if="entry.analysisResult!.forensic_analysis" class="up-ai-p">
+                    {{ entry.analysisResult!.forensic_analysis }}
+                  </p>
+
+                  <blockquote v-if="entry.analysisResult!.key_customer_quote" class="up-quote">
+                    {{ entry.analysisResult!.key_customer_quote }}
+                  </blockquote>
+
+                  <!-- Qué se hizo bien / qué mejorar -->
+                  <div class="up-ai-cols">
+                    <div v-if="entry.analysisResult!.what_agent_did_well.length">
+                      <span class="stc-eyebrow">Bien hecho</span>
+                      <ul class="up-ai-list good">
+                        <li v-for="(item, i) in entry.analysisResult!.what_agent_did_well" :key="i">{{ item }}</li>
+                      </ul>
+                    </div>
+                    <div v-if="entry.analysisResult!.guideline_improvements.length">
+                      <span class="stc-eyebrow">A mejorar</span>
+                      <ul class="up-ai-list warn">
+                        <li v-for="(item, i) in entry.analysisResult!.guideline_improvements" :key="i">{{ item }}</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <!-- Patrón nuevo -->
+                  <p v-if="entry.analysisResult!.newly_detected_pattern" class="up-ai-pattern">
+                    <UIcon name="i-lucide-lightbulb" class="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Patrón nuevo: {{ entry.analysisResult!.newly_detected_pattern }}</span>
+                  </p>
+
+                  <!-- Siguiente acción -->
+                  <div class="up-next">
+                    <div class="up-next-head">
+                      <span class="stc-badge solid">{{ actionTypeLabel(entry.analysisResult!.follow_up.action_type) }}</span>
+                      <span v-if="entry.recontactDate" class="up-next-date stc-mono">
+                        <UIcon name="i-lucide-calendar-clock" class="w-3.5 h-3.5" />
+                        Recontactar el {{ formatDay(entry.recontactDate) }}
+                      </span>
+                    </div>
+                    <p v-if="entry.analysisResult!.follow_up.objective" class="up-next-obj">
+                      {{ entry.analysisResult!.follow_up.objective }}
+                    </p>
+                    <div v-if="entry.analysisResult!.follow_up.suggested_message_es" class="up-msg">
+                      <p class="up-msg-text">{{ entry.analysisResult!.follow_up.suggested_message_es }}</p>
+                      <button
+                        class="stc-btn sm"
+                        title="Copiar mensaje"
+                        @click="copyMessage(entry.analysisResult!.follow_up.suggested_message_es)"
+                      >
+                        <UIcon name="i-lucide-copy" class="w-3.5 h-3.5" />
+                        Copiar
+                      </button>
+                    </div>
+                    <p v-if="entry.analysisResult!.recontact_rationale" class="up-next-why">
+                      {{ entry.analysisResult!.recontact_rationale }}
+                    </p>
+                  </div>
+
+                  <div v-if="entry.analysisResult!.data_quality_flags.length" class="up-ai-flags">
+                    <span
+                      v-for="flag in entry.analysisResult!.data_quality_flags"
+                      :key="flag"
+                      class="stc-badge outline long"
+                    >{{ flag }}</span>
+                  </div>
+                </div>
+
+                <!-- Análisis con el formato anterior (pre-Delta) -->
+                <div
+                  v-else-if="entry.type === 'image' && entry.analysisStatus === 'done'"
+                  class="up-ai-legacy"
+                >
+                  <UIcon name="i-lucide-history" class="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Análisis con formato antiguo — vuelve a analizar para obtener el seguimiento.</span>
+                </div>
+
+                <div
+                  v-else-if="entry.type === 'image' && entry.analysisStatus === 'error'"
+                  class="up-ai-err"
+                >
+                  <UIcon name="i-lucide-triangle-alert" class="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Error al analizar{{ entry.analysisError ? `: ${entry.analysisError}` : '' }}</span>
+                </div>
+
+                <!-- Acciones -->
+                <div v-if="loggedIn" class="up-entry-actions">
+                  <button
+                    v-if="entry.type === 'image'"
+                    class="stc-btn sm gold-soft"
+                    :disabled="analyzingId === entry._id"
+                    @click="analyzeEntry(entry)"
+                  >
+                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                    {{ analyzingId === entry._id ? 'Analizando…' : (entry.analysisStatus === 'done' ? 'Reanalizar' : 'Analizar') }}
+                  </button>
+                  <button
+                    v-if="(session?.user as any)?.role === 'superadmin' && entry.markedForDeletion"
+                    class="stc-btn sm danger"
+                    :disabled="journalActionId === entry._id"
+                    @click="approveDelete(entry)"
+                  >
+                    <UIcon name="i-lucide-trash-2" class="w-3.5 h-3.5" />
+                    Aprobar eliminación
+                  </button>
+                  <button
+                    class="stc-btn sm"
+                    :disabled="journalActionId === entry._id"
+                    @click="toggleMarkForDeletion(entry)"
+                  >
+                    <UIcon :name="entry.markedForDeletion ? 'i-lucide-undo-2' : 'i-lucide-flag'" class="w-3.5 h-3.5" />
+                    {{ entry.markedForDeletion ? 'Desmarcar' : 'Marcar para eliminar' }}
+                  </button>
+                </div>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ── Información técnica ───────────────────────────── -->
+      <section class="stc-panel">
+        <div class="stc-panel-head">
+          <h2 class="stc-panel-title">
+            <UIcon name="i-lucide-fingerprint" class="w-[18px] h-[18px]" />
+            Información técnica
+          </h2>
+        </div>
+        <div class="up-pad up-stack" style="gap:18px">
           <div v-if="user.previousUsernames?.length">
-            <span class="text-xs font-bold uppercase text-gray-400 block mb-2">Nombres anteriores</span>
-            <div class="flex flex-wrap gap-1">
-              <UBadge v-for="prev in user.previousUsernames" :key="prev" variant="outline" size="xs">
-                {{ prev }}
-              </UBadge>
+            <span class="stc-eyebrow">Nombres anteriores</span>
+            <div class="up-prevs">
+              <span v-for="prev in user.previousUsernames" :key="prev" class="stc-badge outline long">{{ prev }}</span>
             </div>
           </div>
           <div>
-            <span class="text-xs font-bold uppercase text-gray-400 block mb-2">Roles asignados ({{ user.roles?.length || 0 }})</span>
-            <div class="text-sm text-gray-500 line-clamp-3">
-              {{ user.roles?.join(', ') || 'Sin roles asignados' }}
-            </div>
+            <span class="stc-eyebrow">Roles asignados ({{ user.roles?.length || 0 }})</span>
+            <p class="up-tech-p">{{ user.roles?.join(', ') || 'Sin roles asignados' }}</p>
           </div>
         </div>
-      </UCard>
-    </div>
+      </section>
+    </template>
   </div>
 </template>
+
+<style scoped>
+.up-page  { display: flex; flex-direction: column; gap: 16px; max-width: 1000px; width: 100%; }
+.up-pad   { padding: 20px 22px 22px; }
+.up-stack { display: flex; flex-direction: column; gap: 10px; }
+.hidden   { display: none; }
+
+/* alerta */
+.up-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px;
+  color: var(--red);
+  border-color: var(--red-line);
+  background: var(--red-dim);
+}
+.up-alert-t {
+  font-family: var(--disp);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: .015em;
+  text-transform: uppercase;
+}
+.up-alert-p { font-size: 13px; color: var(--dim); margin-top: 4px; }
+
+/* ── Cabecera de perfil ── */
+.up-hero { display: flex; gap: 22px; padding: 24px; flex-wrap: wrap; }
+.up-av {
+  width: 88px; height: 88px;
+  border-radius: 16px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 40px;
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+.up-av img { width: 100%; height: 100%; object-fit: cover; }
+.up-hero-body { flex: 1; min-width: 240px; }
+
+.up-idline { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
+.up-name {
+  font-family: var(--disp);
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: .004em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.up-subline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.up-subline span { display: inline-flex; align-items: center; gap: 5px; }
+.up-id { color: var(--dim); background: var(--inset); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; }
+.up-sep { color: var(--line-2); }
+
+.up-roles { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+
+/* ── Métricas ── */
+.up-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.up-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px 17px;
+  border-radius: var(--r);
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.up-stat.gold { background: var(--gold-wash); border-color: var(--gold-ring); }
+.up-stat-n {
+  font-family: var(--disp);
+  font-variant-numeric: tabular-nums;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: .92;
+  color: var(--text);
+}
+.up-stat.gold .up-stat-n { color: var(--gold); }
+.up-stat-n.sm { font-size: 24px; line-height: 1.1; }
+.up-stat-n.muted { color: var(--faint); }
+.up-stat-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* ── Bloques ── */
+.up-block { margin-top: 26px; }
+.up-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.up-block-t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.up-foot-note { font-size: 11px; color: var(--faint); margin-top: 10px; }
+
+/* ── Mapa de calor ── */
+.up-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.up-heatmap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 2px; }
+.up-hcol    { display: flex; flex-direction: column; gap: 3px; }
+
+.hm-cell {
+  width: 13px; height: 13px;
+  border-radius: 3px;
+  display: block;
+  flex-shrink: 0;
+}
+.hm-void { background: transparent; }
+.hm-0 { background: #141414; }
+.hm-1 { background: rgba(234,157,19,.25); }
+.hm-2 { background: rgba(234,157,19,.45); }
+.hm-3 { background: rgba(234,157,19,.7); }
+.hm-4 { background: var(--gold); }
+html:not(.dark) .hm-0 { background: #e6e2d8; }
+.hm-cell.meeting { box-shadow: inset 0 0 0 1.5px var(--gold-soft); }
+
+/* ── Canales ── */
+.up-chans { display: flex; flex-direction: column; gap: 12px; }
+.up-chan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.up-chan-name { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up-chan-n    { color: var(--gold-soft); font-weight: 600; }
+
+/* ── Vídeos ── */
+.up-vid {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px 13px;
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.up-vid-glyph {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+.up-vid-t {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.up-vid-prog { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.up-vid-prog .stc-meter { flex: 1; }
+.up-vid-pct  { font-size: 11px; color: var(--faint); flex-shrink: 0; }
+.up-vid-time { font-size: 11px; color: var(--faint); flex-shrink: 0; text-align: right; }
+
+/* ── Formulario bitácora ── */
+.up-form { margin-bottom: 22px; }
+.up-textarea { resize: vertical; min-height: 92px; line-height: 1.55; font-family: var(--ui); }
+.up-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.up-form-note { font-size: 11.5px; color: var(--faint); }
+.up-form-note b { color: var(--dim); font-weight: 600; }
+
+.up-drop {
+  padding: 28px 20px;
+  border-radius: var(--r);
+  border: 1px dashed var(--line-2);
+  background: var(--inset);
+  text-align: center;
+  cursor: pointer;
+  color: var(--faint);
+  transition: .15s;
+}
+.up-drop:hover { border-color: var(--gold-ring); background: var(--gold-wash); color: var(--gold-soft); }
+.up-drop-t { font-size: 13px; color: var(--dim); margin-top: 8px; }
+.up-drop-p { font-size: 11px; color: var(--faint); margin-top: 3px; }
+
+.up-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.up-file-glyph {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+.up-file-n { font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.up-file-s { font-size: 11px; color: var(--faint); margin-top: 2px; }
+
+.up-locked {
+  padding: 16px 18px;
+  margin-bottom: 22px;
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--faint);
+}
+
+/* ── Resumen puntos de dolor ── */
+.up-rollup {
+  padding: 15px 17px;
+  margin-bottom: 22px;
+  border-radius: var(--r);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+.up-rollup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.up-rollup-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-soft);
+}
+.up-rollup-link { font-size: 11.5px; font-weight: 600; color: var(--gold-soft); text-decoration: none; }
+.up-rollup-link:hover { text-decoration: underline; }
+.up-rollup-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Línea de tiempo ── */
+.up-timeline {
+  position: relative;
+  margin-top: 20px;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.up-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--gold-line), var(--line) 75%);
+}
+.up-tl-item { position: relative; }
+.up-tl-node {
+  position: absolute;
+  left: -21px;
+  top: 16px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 3px var(--panel);
+}
+
+.up-entry {
+  padding: 14px 16px;
+  border-radius: var(--r);
+  background: var(--inset);
+  border: 1px solid var(--line);
+}
+.up-entry.flagged { border-color: var(--gold-line); }
+
+.up-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+.up-entry-who { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--dim); }
+.up-entry-who b { color: var(--text); font-weight: 600; }
+.up-entry-time { font-size: 11px; color: var(--faint); }
+
+.up-entry-text {
+  font-size: 13.5px;
+  color: var(--dim);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.up-entry-img { display: block; }
+.up-entry-img img {
+  max-height: 320px;
+  width: auto;
+  max-width: 100%;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+}
+.up-entry-na { font-size: 11.5px; font-style: italic; color: var(--faint); }
+
+.up-flag {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--gold-soft);
+}
+.up-flag b { font-weight: 600; }
+
+/* ── Análisis Delta ── */
+.up-ai {
+  margin-top: 12px;
+  padding: 13px 15px;
+  border-radius: var(--r-sm);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+.up-ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.up-ai-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+.up-ai-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.up-ai-p    { font-size: 13px; color: var(--dim); line-height: 1.55; margin-top: 11px; }
+
+.up-quote {
+  margin: 11px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--gold);
+  background: rgba(0,0,0,.25);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+html:not(.dark) .up-quote { background: rgba(0,0,0,.04); }
+
+.up-ai-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.up-ai-list { margin-top: 7px; display: flex; flex-direction: column; gap: 5px; }
+.up-ai-list li {
+  position: relative;
+  padding-left: 15px;
+  font-size: 12.5px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+.up-ai-list li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-weight: 700;
+}
+.up-ai-list.good li::before { content: '✓'; color: var(--green); }
+.up-ai-list.warn li::before { content: '→'; color: var(--gold); }
+
+.up-ai-pattern {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--gold-soft);
+}
+
+/* siguiente acción */
+.up-next {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--gold-ring);
+}
+.up-next-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.up-next-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.up-next-obj { font-size: 12.5px; color: var(--dim); line-height: 1.5; margin-top: 9px; }
+
+.up-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(0,0,0,.3);
+  border: 1px solid var(--line);
+}
+html:not(.dark) .up-msg { background: #fff; }
+.up-msg-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.up-msg .stc-btn { flex-shrink: 0; }
+.up-next-why { font-size: 11.5px; color: var(--faint); margin-top: 8px; }
+
+.up-ai-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+.up-ai-legacy,
+.up-ai-err {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: 11.5px;
+}
+.up-ai-legacy { color: var(--faint); }
+.up-ai-err    { color: var(--red); }
+
+.up-entry-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+/* ── Info técnica ── */
+.up-prevs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.up-tech-p { font-size: 13px; color: var(--dim); margin-top: 8px; line-height: 1.6; }
+
+@media (max-width: 640px) {
+  .up-hero { padding: 18px 16px; gap: 16px; }
+  .up-av   { width: 68px; height: 68px; font-size: 32px; border-radius: 13px; }
+  .up-name { font-size: 32px; }
+  .up-pad  { padding: 16px; }
+  .up-vid  { flex-wrap: wrap; }
+  .up-vid-time { width: 100%; text-align: left; }
+}
+</style>

@@ -1,0 +1,27 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Exported member data — bitácora screenshots and notes about real Discord
+# members. Never commit: this is personal data and the repo is on GitHub.
+bitacora-screenshots/
+bitacora-by-uploader/
+bitacora-by-uploader.zip

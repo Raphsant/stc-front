@@ -1,7 +1,5 @@
 <script setup lang="ts">
-const { loggedIn, session } = useUserSession()
 const toast = useToast()
-const badgeVariant = useBadgeVariant()
 
 useSeoMeta({ title: 'Eliminaciones pendientes - STC Control' })
 
@@ -39,94 +37,153 @@ async function reject(entry: any) {
 </script>
 
 <template>
-  <div class="p-4 md:p-6 max-w-3xl mx-auto">
-    <div class="mb-6 flex items-center justify-between">
+  <div class="pd-page">
+    <div class="stc-page-head">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Eliminaciones pendientes</h1>
-        <p class="text-sm text-gray-500 mt-1">Entradas de bitácora marcadas para eliminación.</p>
+        <div class="stc-page-title">Eliminaciones pendientes</div>
+        <div class="stc-page-sub">Entradas de bitácora marcadas para eliminación.</div>
       </div>
-      <UBadge v-if="!pending" :variant="badgeVariant" :color="entries.length ? 'warning' : 'neutral'" size="lg">
+      <span v-if="!pending" class="stc-badge" :class="entries.length ? 'gold' : 'neutral'">
         {{ entries.length }} {{ entries.length === 1 ? 'entrada' : 'entradas' }}
-      </UBadge>
+      </span>
     </div>
 
-    <div v-if="pending" class="space-y-3">
-      <USkeleton v-for="n in 4" :key="n" class="h-28 w-full" />
+    <div v-if="pending" class="pd-stack">
+      <USkeleton v-for="n in 4" :key="n" class="h-28 w-full rounded-[10px]" />
     </div>
 
-    <div
-      v-else-if="!entries.length"
-      class="text-center py-16 text-gray-400 space-y-2"
-    >
-      <UIcon name="i-heroicons-check-circle" class="text-4xl text-green-500" />
+    <div v-else-if="!entries.length" class="stc-panel pd-clear">
+      <span class="pd-clear-glyph">
+        <UIcon name="i-lucide-check" class="w-6 h-6" />
+      </span>
       <p>No hay entradas pendientes de eliminación.</p>
     </div>
 
-    <div v-else class="space-y-4">
-      <UCard
-        v-for="entry in entries"
-        :key="entry._id"
-        class="border border-amber-400/40 dark:border-amber-600/30"
-      >
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex-1 min-w-0">
-            <!-- User + author -->
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <UIcon name="i-heroicons-flag" class="text-amber-500 shrink-0" />
-              <NuxtLink
-                :to="`/discord-users/${entry.discordUserId}`"
-                class="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
-              >
-                {{ entry.discordUser?.username ?? entry.discordUserId }}
-              </NuxtLink>
-              <span class="text-xs text-gray-400">·</span>
-              <span class="text-xs text-gray-500">escrito por <strong>{{ entry.adminUsername }}</strong></span>
-            </div>
-
-            <!-- Content preview -->
-            <p
-              v-if="entry.type === 'text'"
-              class="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 whitespace-pre-wrap break-words"
-            >
-              {{ entry.content }}
-            </p>
-            <div v-else class="flex items-center gap-1.5 text-xs text-gray-400 italic">
-              <UIcon name="i-heroicons-photo" />
-              <span>Entrada de imagen</span>
-            </div>
-
-            <!-- Who marked it + when -->
-            <p class="text-xs text-gray-400 mt-2">
-              Marcado por <strong>{{ entry.markedForDeletionBy }}</strong>
-              · {{ formatRelativeTime(entry.markedForDeletionAt) }}
-            </p>
+    <div v-else class="pd-stack">
+      <article v-for="entry in entries" :key="entry._id" class="stc-panel pd-card">
+        <div class="pd-body">
+          <!-- Usuario + autor -->
+          <div class="pd-head">
+            <UIcon name="i-lucide-flag" class="w-4 h-4 flex-shrink-0" style="color:var(--gold)" />
+            <NuxtLink :to="`/discord-users/${entry.discordUserId}`" class="pd-user">
+              {{ entry.discordUser?.username ?? entry.discordUserId }}
+            </NuxtLink>
+            <span class="pd-sep">·</span>
+            <span class="pd-author">escrito por <b>{{ entry.adminUsername }}</b></span>
           </div>
 
-          <!-- Actions -->
-          <div class="flex flex-col gap-2 shrink-0">
-            <UButton
-              size="xs"
-              color="error"
-              variant="soft"
-              icon="i-heroicons-trash"
-              :loading="processingId === entry._id"
-              @click="approve(entry)"
-            >
-              Eliminar
-            </UButton>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="outline"
-              icon="i-heroicons-arrow-uturn-left"
-              :loading="processingId === entry._id"
-              @click="reject(entry)"
-            >
-              Rechazar
-            </UButton>
+          <!-- Vista previa -->
+          <p v-if="entry.type === 'text'" class="pd-preview">{{ entry.content }}</p>
+          <div v-else class="pd-img-note">
+            <UIcon name="i-lucide-image" class="w-3.5 h-3.5" />
+            Entrada de imagen
           </div>
+
+          <!-- Quién la marcó -->
+          <p class="pd-marked">
+            Marcado por <b>{{ entry.markedForDeletionBy }}</b>
+            · {{ formatRelativeTime(entry.markedForDeletionAt) }}
+          </p>
         </div>
-      </UCard>
+
+        <!-- Acciones -->
+        <div class="pd-actions">
+          <button class="stc-btn sm danger" :disabled="processingId === entry._id" @click="approve(entry)">
+            <UIcon name="i-lucide-trash-2" class="w-3.5 h-3.5" />
+            Eliminar
+          </button>
+          <button class="stc-btn sm" :disabled="processingId === entry._id" @click="reject(entry)">
+            <UIcon name="i-lucide-undo-2" class="w-3.5 h-3.5" />
+            Rechazar
+          </button>
+        </div>
+      </article>
     </div>
   </div>
 </template>
+
+<style scoped>
+.pd-page  { display: flex; flex-direction: column; gap: 20px; max-width: 860px; width: 100%; }
+.pd-stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* estado limpio */
+.pd-clear {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 56px 24px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+.pd-clear-glyph {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  background: var(--green-dim);
+  border: 1px solid var(--green-line);
+}
+
+/* tarjeta */
+.pd-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border-left: 2px solid var(--gold);
+}
+.pd-body { flex: 1; min-width: 0; }
+
+.pd-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.pd-user {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+.pd-user:hover { color: var(--gold-soft); }
+.pd-sep    { color: var(--faint); }
+.pd-author { font-size: 12px; color: var(--faint); }
+.pd-author b { color: var(--dim); font-weight: 600; }
+
+.pd-preview {
+  font-size: 13.5px;
+  color: var(--dim);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pd-img-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--faint);
+}
+.pd-marked { font-size: 11.5px; color: var(--faint); margin-top: 10px; }
+.pd-marked b { color: var(--dim); font-weight: 600; }
+
+.pd-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .pd-card { flex-direction: column; gap: 14px; }
+  .pd-actions { flex-direction: row; width: 100%; }
+  .pd-actions .stc-btn { flex: 1; }
+}
+</style>

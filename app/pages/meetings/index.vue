@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const badgeVariant = useBadgeVariant()
 const route = useRoute()
 const userId = computed(() => route.query.userId as string)
 
@@ -27,6 +26,10 @@ const grouped = computed(() => {
     (a, b) => new Date(b.occurrences[0].occurredAt).getTime() - new Date(a.occurrences[0].occurredAt).getTime()
   )
 })
+
+const totalSessions = computed(() =>
+  grouped.value.reduce((n, g) => n + g.occurrences.length, 0),
+)
 
 const expanded = ref<Set<string>>(new Set())
 
@@ -74,126 +77,253 @@ watch(userId, () => refresh())
 </script>
 
 <template>
-  <div class="p-4 sm:p-6">
-    <div class="mb-6 sm:mb-8">
-      <h1 class="text-2xl sm:text-3xl font-bold  dark:text-white">
-        {{ userId ? 'Meetings del Usuario' : 'Registro de Meetings' }}
-      </h1>
-      <p v-if="userId" class="text-neutral-400 mt-1 flex flex-wrap items-center gap-2 text-sm">
-        Filtrando por usuario:
-        <UBadge :variant="badgeVariant" size="sm" color="primary">{{ userId }}</UBadge>
-        <UButton to="/meetings" icon="i-heroicons-x-mark" color="neutral" variant="ghost" size="xs" label="Remover filtro" />
-      </p>
-    </div>
-
-    <div v-if="error" class="mb-6">
-      <UAlert
-        icon="i-heroicons-exclamation-triangle"
-        color="error"
-        variant="soft"
-        title="Error"
-        :description="`No se pudieron cargar los meetings: ${error.message}`"
-      />
-    </div>
-
-    <!-- Skeleton -->
-    <UCard v-if="pending" class="dark:bg-neutral-900/50 dark:border-neutral-800">
-      <div class="space-y-3">
-        <div v-for="i in 6" :key="i" class="flex items-center gap-3 p-2">
-          <USkeleton class="h-4 w-4 rounded shrink-0" />
-          <USkeleton class="h-4 w-4 rounded shrink-0" />
-          <USkeleton class="h-4 w-40 sm:w-64" />
-          <USkeleton class="h-5 w-10 rounded-full ml-auto" />
-          <USkeleton class="h-4 w-6 hidden sm:block" />
-          <USkeleton class="h-4 w-20 hidden md:block" />
+  <div class="mt-page">
+    <!-- Cabecera -->
+    <div class="stc-page-head">
+      <div class="min-w-0">
+        <div class="stc-page-title">
+          {{ userId ? 'Meetings del usuario' : 'Registro de meetings' }}
         </div>
+        <div v-if="userId" class="mt-filter">
+          <span class="stc-page-sub" style="margin:0">Filtrando por usuario</span>
+          <span class="stc-badge gold stc-mono">{{ userId }}</span>
+          <NuxtLink to="/meetings" class="stc-btn sm">
+            <UIcon name="i-lucide-x" class="w-3.5 h-3.5" />
+            Remover filtro
+          </NuxtLink>
+        </div>
+        <div v-else class="stc-page-sub">Sesiones de Zoom agrupadas por reunión recurrente.</div>
       </div>
-    </UCard>
+      <div v-if="!pending && grouped.length" class="mt-counts">
+        <span class="stc-badge neutral">{{ grouped.length }} {{ grouped.length === 1 ? 'reunión' : 'reuniones' }}</span>
+        <span class="stc-badge gold">{{ totalSessions }} {{ totalSessions === 1 ? 'sesión' : 'sesiones' }}</span>
+      </div>
+    </div>
 
-    <!-- Grouped list -->
-    <UCard v-else class="dark:bg-neutral-900/50 dark:border-neutral-800 overflow-hidden p-0">
-      <div v-if="!grouped.length" class="flex flex-col items-center justify-center py-12 text-neutral-500">
-        <UIcon name="i-heroicons-inbox" class="w-10 h-10 mb-2" />
+    <!-- Error -->
+    <section v-if="error" class="stc-panel mt-alert">
+      <UIcon name="i-lucide-triangle-alert" class="w-5 h-5 flex-shrink-0" />
+      <div>
+        <div class="mt-alert-t">Error</div>
+        <p class="mt-alert-p">No se pudieron cargar los meetings: {{ error.message }}</p>
+      </div>
+    </section>
+
+    <!-- Carga -->
+    <section v-else-if="pending" class="stc-panel" style="padding:8px 20px">
+      <div v-for="i in 6" :key="i" class="mt-sk">
+        <USkeleton class="h-4 w-4 rounded flex-shrink-0" />
+        <USkeleton class="h-4 w-40 sm:w-64" />
+        <USkeleton class="h-5 w-16 rounded-md ml-auto" />
+        <USkeleton class="h-4 w-20 hidden md:block" />
+      </div>
+    </section>
+
+    <!-- Lista agrupada -->
+    <section v-else class="stc-panel" style="overflow:hidden">
+      <div v-if="!grouped.length" class="stc-empty">
+        <UIcon name="i-lucide-inbox" />
         <p>No se encontraron meetings.</p>
       </div>
 
-      <div v-else class="divide-y divide-cream-400 dark:divide-neutral-800">
-        <div v-for="group in grouped" :key="group.meetingId">
-
-          <!-- Group header -->
+      <template v-else>
+        <div v-for="group in grouped" :key="group.meetingId" class="mt-group">
+          <!-- Cabecera del grupo -->
           <button
-            class="w-full flex items-center gap-3 px-4 py-4 hover:bg-cream-300/40 dark:hover:bg-neutral-800/40 transition-colors text-left"
+            class="mt-ghead"
+            :class="{ open: expanded.has(group.meetingId) }"
             @click="toggle(group.meetingId)"
           >
-            <UIcon
-              :name="expanded.has(group.meetingId) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
-              class="w-4 h-4 text-neutral-500 shrink-0"
-            />
-            <UIcon name="i-heroicons-video-camera" class="w-4 h-4 text-primary-500 shrink-0" />
+            <UIcon name="i-lucide-chevron-right" class="mt-caret w-4 h-4 flex-shrink-0" />
+            <span class="mt-gicon">
+              <UIcon name="i-lucide-video" class="w-4 h-4" />
+            </span>
 
-            <!-- Name + mobile meta -->
-            <div class="flex-1 min-w-0">
-              <span class="font-medium text-neutral-900 dark:text-neutral-100 truncate block">{{ group.name }}</span>
-              <!-- Mobile-only secondary line -->
-              <div class="flex items-center gap-2 mt-0.5 sm:hidden">
-                <span class="text-xs text-neutral-500">{{ formatDateShort(group.occurrences[0].occurredAt) }}</span>
-                <span class="text-neutral-700">·</span>
-                <span class="text-xs text-neutral-500">{{ uniqueParticipants(group.occurrences) }} participantes</span>
-              </div>
-            </div>
+            <span class="mt-gname">
+              <span class="mt-gtitle">{{ group.name }}</span>
+              <span class="mt-gmeta sm:hidden">
+                {{ formatDateShort(group.occurrences[0].occurredAt) }}
+                ·
+                {{ uniqueParticipants(group.occurrences) }} participantes
+              </span>
+            </span>
 
-            <!-- Desktop meta -->
-            <div class="hidden sm:flex items-center gap-4 shrink-0">
-              <div class="flex items-center gap-1.5 text-primary-400 text-sm">
-                <UIcon name="i-heroicons-users" class="w-5 h-5" />
-                <span>{{ uniqueParticipants(group.occurrences) }}</span>
-              </div>
-              <span class="text-xs text-neutral-600 dark:text-neutral-300">
+            <span class="mt-gstats">
+              <span class="mt-gpart stc-mono">
+                <UIcon name="i-lucide-users" class="w-4 h-4" />
+                {{ uniqueParticipants(group.occurrences) }}
+              </span>
+              <span class="mt-glast stc-mono">
                 Última: {{ formatDateShort(group.occurrences[0].occurredAt) }}
               </span>
-            </div>
+            </span>
 
-            <UBadge color="primary" :variant="badgeVariant" size="sm" class="shrink-0">
+            <span class="stc-badge gold flex-shrink-0">
               {{ group.occurrences.length }} sesión{{ group.occurrences.length !== 1 ? 'es' : '' }}
-            </UBadge>
+            </span>
           </button>
 
-          <!-- Occurrences -->
-          <div v-if="expanded.has(group.meetingId)" class="bg-cream-100/60 dark:bg-neutral-950/60 border-t border-cream-400/60 dark:border-neutral-800/60">
-            <div
-              v-for="occ in group.occurrences"
-              :key="occ._id"
-              class="flex items-center gap-3 px-4 sm:px-8 py-3 border-b border-cream-400/30 dark:border-neutral-800/30 last:border-0"
-            >
-              <!-- Indent line -->
-              <div class="w-px h-6 bg-cream-400 dark:bg-neutral-700 shrink-0 hidden sm:block" />
-
-              <!-- Date info -->
-              <div class="flex-1 min-w-0">
-                <p class="text-sm text-neutral-800 dark:text-neutral-200 font-medium capitalize truncate">
-                  {{ formatDate(occ.occurredAt) }}
-                </p>
-                <div class="flex items-center gap-1.5 mt-0.5 text-sm ">
-                  <UIcon name="i-heroicons-users" class="w-5 h-5 text-primary-500" />
-                  <span>{{ occ.participants?.length || 0 }} participante{{ (occ.participants?.length || 0) !== 1 ? 's' : '' }}</span>
+          <!-- Ocurrencias -->
+          <div v-if="expanded.has(group.meetingId)" class="mt-occs">
+            <div v-for="occ in group.occurrences" :key="occ._id" class="mt-occ">
+              <span class="mt-occ-tick" />
+              <div class="min-w-0 flex-1">
+                <div class="mt-occ-date">{{ formatDate(occ.occurredAt) }}</div>
+                <div class="mt-occ-sub stc-mono">
+                  <UIcon name="i-lucide-users" class="w-3.5 h-3.5" />
+                  {{ occ.participants?.length || 0 }} participante{{ (occ.participants?.length || 0) !== 1 ? 's' : '' }}
                 </div>
               </div>
-
-              <!-- Action button -->
-              <UButton
-                :to="`/meetings/${occ._id}`"
-                color="primary"
-                :variant="badgeVariant"
-                size="xs"
-                icon="i-heroicons-arrow-top-right-on-square"
-                label="Ver detalles"
-                class="shrink-0"
-              />
+              <NuxtLink :to="`/meetings/${occ._id}`" class="stc-btn sm gold-soft flex-shrink-0">
+                Ver detalles
+                <UIcon name="i-lucide-arrow-up-right" class="w-3.5 h-3.5" />
+              </NuxtLink>
             </div>
           </div>
-
         </div>
-      </div>
-    </UCard>
+      </template>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.mt-page { display: flex; flex-direction: column; gap: 20px; }
+
+.mt-filter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.mt-counts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* alerta */
+.mt-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  color: var(--red);
+  border-color: var(--red-line);
+  background: var(--red-dim);
+}
+.mt-alert-t { font-weight: 600; font-size: 14px; }
+.mt-alert-p { font-size: 13px; color: var(--dim); margin-top: 3px; }
+
+/* skeleton */
+.mt-sk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.mt-sk:last-child { border-bottom: none; }
+
+/* grupo */
+.mt-group { border-bottom: 1px solid var(--line); }
+.mt-group:last-child { border-bottom: none; }
+
+.mt-ghead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background .14s;
+}
+.mt-ghead:hover { background: rgba(255,255,255,.025); }
+html:not(.dark) .mt-ghead:hover { background: rgba(0,0,0,.025); }
+
+.mt-caret { color: var(--faint); transition: transform .18s; }
+.mt-ghead.open .mt-caret { transform: rotate(90deg); color: var(--gold); }
+
+.mt-gicon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+
+.mt-gname { flex: 1; min-width: 0; display: block; }
+.mt-gtitle {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mt-gmeta {
+  display: block;
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 2px;
+}
+
+.mt-gstats { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.mt-gpart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-soft);
+}
+.mt-glast { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+
+/* ocurrencias */
+.mt-occs {
+  background: #050505;
+  border-top: 1px solid var(--line);
+}
+html:not(.dark) .mt-occs { background: var(--inset); }
+
+.mt-occ {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px 12px 30px;
+  border-bottom: 1px solid var(--line);
+}
+.mt-occ:last-child { border-bottom: none; }
+.mt-occ-tick {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--gold-line);
+}
+.mt-occ-date {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mt-occ-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-top: 3px;
+}
+
+@media (max-width: 640px) {
+  .mt-gstats { display: none; }
+  .mt-ghead  { padding: 13px 14px; gap: 9px; }
+  .mt-occ    { padding: 11px 14px 11px 20px; flex-wrap: wrap; }
+}
+</style>

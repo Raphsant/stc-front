@@ -1,63 +1,1016 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-@theme {
-  /* Cream palette for light mode surfaces */
-  --color-cream-50: #fefcf9;
-  --color-cream-100: #faf6ef;
-  --color-cream-200: #f0eae0;
-  --color-cream-300: #e5ddd0;
-  --color-cream-400: #d4c9b8;
-  --color-cream-500: #bdb0a0;
+/* ═══════════════════════════════════════════════════════════
+   STC — Stocks Trading Club
+   Identidad: negro puro (#000) + dorado (#ea9d13).
+   Tipografía: Big Shoulders Display (titulares y números
+   grandes) + Inter (cuerpo y UI).
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Paletas para Nuxt UI (Tailwind v4) ──────────────────── */
+@theme static {
+  /* dorado de marca */
+  --color-gold-50:  #fdf8ec;
+  --color-gold-100: #faedcb;
+  --color-gold-200: #f5da97;
+  --color-gold-300: #f0c65e;
+  --color-gold-400: #eeb133;
+  --color-gold-500: #ea9d13;
+  --color-gold-600: #cf860f;
+  --color-gold-700: #b87510;
+  --color-gold-800: #8a5709;
+  --color-gold-900: #5c3a06;
+  --color-gold-950: #2e1d03;
+
+  /* neutral anclado en negro puro */
+  --color-ink-50:  #f0f0f0;
+  --color-ink-100: #d8d8d8;
+  --color-ink-200: #b8b8b8;
+  --color-ink-300: #969696;
+  --color-ink-400: #777777;
+  --color-ink-500: #5a5a5a;
+  --color-ink-600: #3d3d3d;
+  --color-ink-700: #2a2a2a;
+  --color-ink-800: #1a1a1a;
+  --color-ink-900: #0b0b0b;
+  --color-ink-950: #000000;
 }
 
-/* Light mode: Claude-style creamy orange (readable on cream bg) */
+/* ─── Design tokens (dark = tema de marca) ─────────────────── */
 :root {
-  --color-primary-50:  #fdf5ef;
-  --color-primary-100: #fae5d0;
-  --color-primary-200: #f5c9a0;
-  --color-primary-300: #eca46a;
-  --color-primary-400: #e07848;
-  --color-primary-500: #c75e30;
-  --color-primary-600: #a44822;
-  --color-primary-700: #80381a;
-  --color-primary-800: #592712;
-  --color-primary-900: #38190b;
-  --color-primary-950: #1e0d05;
+  /* superficies — el fondo base es SIEMPRE negro puro */
+  --bg:          #000;
+  --panel:       #0b0b0b;
+  --panel-2:     #111;
+  --inset:       #060606;
+  --sidebar:     #000;
+  --line:        #1a1a1a;
+  --line-2:      #2a2a2a;
+
+  /* texto */
+  --text:        #f0f0f0;
+  --dim:         #8f8f8f;
+  --faint:       #6b6b6b;
+
+  /* dorado */
+  --gold:        #ea9d13;
+  --gold-soft:   #f5c842;
+  --gold-dark:   #b87510;
+  --gold-line:   #4a3200;
+  --gold-bg:     #0f0800;
+  --gold-wash:   rgba(234, 157, 19, .10);
+  --gold-ring:   rgba(234, 157, 19, .38);
+  --gold-ink:    #120c00;
+
+  /* estados */
+  --green:       #4ade80;
+  --green-dim:   rgba(74, 222, 128, .12);
+  --green-line:  #166534;
+  --red:         #f0616b;
+  --red-dim:     rgba(240, 97, 107, .12);
+  --red-line:    #5c1b20;
+  --red-ink:     #1a0507;
+  --blue:        #6aa6f7;
+  --blue-dim:    rgba(106, 166, 247, .12);
+  --blue-line:   #1e3a5f;
+
+  /* tipografía */
+  --disp: 'Big Shoulders Display', 'Inter', system-ui, sans-serif;
+  --ui:   'Inter', system-ui, -apple-system, sans-serif;
+  /* --mono se usa en toda la app para cifras y etiquetas: Inter con
+     cifras tabulares mantiene la alineación sin una tercera fuente. */
+  --mono: 'Inter', system-ui, sans-serif;
+  --code: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --r:    10px;
+  --r-sm: 7px;
+  --r-xs: 5px;
+
+  /* alias heredados — mantienen el CSS de página existente */
+  --amber:      var(--gold);
+  --amber-2:    var(--gold-soft);
+  --amber-dim:  var(--gold-wash);
+  --amber-ring: var(--gold-ring);
 }
 
-/* Dark mode: golden yellow primary */
-.dark {
-  --color-primary-50:  #fdf8ec;
-  --color-primary-100: #f9edcc;
-  --color-primary-200: #f3d98b;
-  --color-primary-300: #ecc354;
-  --color-primary-400: #e5b63d;
-  --color-primary-500: #ddaa33;
-  --color-primary-600: #b08929;
-  --color-primary-700: #876820;
-  --color-primary-800: #5d4716;
-  --color-primary-900: #3c2d0d;
-  --color-primary-950: #221a07;
+/* ─── Tokens semánticos de Nuxt UI ────────────────────────── */
+:root, .dark {
+  --ui-bg:              #000;
+  --ui-bg-muted:        #0b0b0b;
+  --ui-bg-elevated:     #111;
+  --ui-bg-accented:     #1a1a1a;
+  --ui-bg-inverted:     #f0f0f0;
+  --ui-border:          #1a1a1a;
+  --ui-border-muted:    #1a1a1a;
+  --ui-border-accented: #2a2a2a;
+  --ui-border-inverted: #f0f0f0;
+  --ui-text-dimmed:     #5a5a5a;
+  --ui-text-muted:      #6b6b6b;
+  --ui-text-toned:      #8f8f8f;
+  --ui-text:            #d4d4d4;
+  --ui-text-highlighted:#f0f0f0;
+  --ui-text-inverted:   #000;
+  --ui-radius:          .3rem;
 }
 
-/* Page transitions */
-.page-enter-active,
-.page-leave-active {
-    transition: all 0.25s ease-out;
-}
-.page-enter-from,
-.page-leave-to {
-    opacity: 0;
-    transform: translateY(8px);
+/* ─── Light mode ──────────────────────────────────────────── */
+/* La marca es negra; el modo claro conserva el dorado sobre papel
+   cálido para quien lo prefiera en pantallas muy iluminadas. */
+:root.light,
+html:not(.dark) {
+  --bg:        #f7f5f0;
+  --panel:     #fff;
+  --panel-2:   #fbfaf7;
+  --inset:     #f2efe8;
+  --sidebar:   #f0ede6;
+  --line:      #e2ded4;
+  --line-2:    #cdc7b9;
+
+  --text:      #0a0a0a;
+  --dim:       #5f5b53;
+  --faint:     #8a857b;
+
+  --gold:      #b87510;
+  --gold-soft: #96600c;
+  --gold-line: #e6d4a8;
+  --gold-wash: rgba(184, 117, 16, .10);
+  --gold-ring: rgba(184, 117, 16, .40);
+  --gold-ink:  #fffaf0;
+
+  --green:     #15803d;
+  --green-dim: rgba(21, 128, 61, .10);
+  --green-line:#a7d9b9;
+  --red:       #c0343f;
+  --red-dim:   rgba(192, 52, 63, .09);
+  --red-line:  #edb8bc;
+  --red-ink:   #fff5f5;
+  --blue:      #2563eb;
+  --blue-dim:  rgba(37, 99, 235, .09);
+  --blue-line: #bcd0f5;
 }
 
-/* Layout transitions */
-.layout-enter-active,
-.layout-leave-active {
-    transition: all 0.25s;
+html:not(.dark) {
+  --ui-bg:              #fff;
+  --ui-bg-muted:        #f7f5f0;
+  --ui-bg-elevated:     #f2efe8;
+  --ui-bg-accented:     #e2ded4;
+  --ui-bg-inverted:     #0a0a0a;
+  --ui-border:          #e2ded4;
+  --ui-border-muted:    #e2ded4;
+  --ui-border-accented: #cdc7b9;
+  --ui-border-inverted: #0a0a0a;
+  --ui-text-dimmed:     #8a857b;
+  --ui-text-muted:      #6f6a61;
+  --ui-text-toned:      #5f5b53;
+  --ui-text:            #2b2823;
+  --ui-text-highlighted:#0a0a0a;
+  --ui-text-inverted:   #fff;
 }
-.layout-enter-from,
-.layout-leave-to {
-    opacity: 0;
+
+/* ─── Base ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
+
+body {
+  font-family: var(--ui);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background-color: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Cifras en Inter tabular — alineadas sin una tercera fuente. */
+.stc-mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Cadenas técnicas crudas (IDs, claves) */
+.stc-code {
+  font-family: var(--code);
+  font-size: .92em;
+  letter-spacing: -.01em;
+}
+
+/* Titulares de marca — Big Shoulders, condensada y premium */
+.stc-display {
+  font-family: var(--disp);
+  font-weight: 700;
+  letter-spacing: .002em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+/* Etiqueta superior en versalitas */
+.stc-eyebrow {
+  font-family: var(--ui);
+  font-size: 10px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stc-gold { color: var(--gold-soft); }
+
+/* Regla dorada — separador de marca */
+.stc-rule {
+  height: 2px;
+  width: 46px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+}
+
+/* ─── Cabecera de página ──────────────────────────────────── */
+.stc-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.stc-page-title {
+  font-family: var(--disp);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: .004em;
+  line-height: 1.04;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.stc-page-sub {
+  font-size: 13.5px;
+  color: var(--dim);
+  margin-top: 5px;
+}
+
+/* ─── Panel (plano, filete) ───────────────────────────────── */
+.stc-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.stc-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.stc-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--disp);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.stc-panel-title .iconify,
+.stc-panel-title svg { color: var(--gold); }
+
+/* ─── Sidebar ─────────────────────────────────────────────── */
+.stc-sidebar {
+  background: var(--sidebar);
+  border-right: 1px solid var(--line);
+}
+
+/* ─── Marca ───────────────────────────────────────────────── */
+.stc-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+/* Visibilidad por tema — los logotipos tienen variante clara y oscura */
+html:not(.dark) .stc-only-dark { display: none !important; }
+html.dark .stc-only-light      { display: none !important; }
+
+/* Marca cuadrada (velas doradas). El PNG viene con fondo negro sólido
+   y ~20% de aire, así que se recorta con overflow + escala. */
+.stc-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--gold-ring);
+}
+.stc-brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(1.16);
+  display: block;
+}
+
+/* Logotipo completo. Las variantes oscuras vienen quemadas sobre negro:
+   `screen` deja pasar el dorado y el blanco y funde el negro con el
+   fondo, evitando el rectángulo visible sobre las tarjetas #0b0b0b. */
+.stc-lockup {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+.stc-lockup.stc-only-dark { mix-blend-mode: screen; }
+.stc-brand-name {
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 21px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--text);
+}
+.stc-brand-name em {
+  font-style: normal;
+  color: var(--gold);
+}
+
+/* ─── Nav item ────────────────────────────────────────────── */
+.stc-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  color: var(--dim);
+  font-family: var(--ui);
+  font-weight: 500;
+  font-size: 13.5px;
+  cursor: pointer;
+  text-decoration: none;
+  user-select: none;
+  transition: color .15s, background .15s;
+}
+.stc-nav-item .iconify,
+.stc-nav-item svg { opacity: .8; }
+
+.stc-nav-item:hover {
+  color: var(--text);
+  background: rgba(255,255,255,.04);
+}
+html:not(.dark) .stc-nav-item:hover { background: rgba(0,0,0,.04); }
+
+.stc-nav-item.active {
+  color: var(--gold-soft);
+  background: var(--gold-wash);
+}
+.stc-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold);
+}
+.stc-nav-item.active .iconify,
+.stc-nav-item.active svg { opacity: 1; }
+
+/* ─── Topbar ──────────────────────────────────────────────── */
+.stc-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+html:not(.dark) .stc-topbar { background: rgba(247,245,240,.88); }
+
+.stc-topbar-title {
+  font-family: var(--disp);
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+/* ─── Insignia de versión ─────────────────────────────────── */
+.stc-ver {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--gold-soft);
+  padding: 5px 9px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--gold-ring);
+  background: var(--gold-wash);
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background .15s;
+}
+.stc-ver:hover { background: rgba(234,157,19,.18); }
+
+/* ─── Botón de icono superior ─────────────────────────────── */
+.stc-top-icon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  transition: .15s;
+}
+.stc-top-icon:hover {
+  color: var(--text);
+  border-color: var(--line-2);
+  background: rgba(255,255,255,.03);
+}
+html:not(.dark) .stc-top-icon:hover { background: rgba(0,0,0,.03); }
+.stc-top-icon .nd {
+  position: absolute;
+  top: 8px; right: 9px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+/* ─── Tarjeta de usuario (pie del sidebar) ────────────────── */
+.stc-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+}
+.stc-user-av {
+  width: 32px; height: 32px;
+  border-radius: 7px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--gold-ink);
+  background: linear-gradient(150deg, var(--gold-soft), var(--gold));
+}
+.stc-ibtn {
+  display: grid;
+  place-items: center;
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  color: var(--dim);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  transition: .15s;
+}
+.stc-ibtn:hover {
+  color: var(--gold-soft);
+  background: var(--gold-wash);
+}
+
+/* ─── Botones ─────────────────────────────────────────────── */
+.stc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: .15s;
+}
+.stc-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--line-2);
+  background: rgba(255,255,255,.03);
+}
+html:not(.dark) .stc-btn:hover:not(:disabled) { background: rgba(0,0,0,.03); }
+.stc-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.stc-btn.gold {
+  color: var(--gold-ink);
+  border-color: var(--gold);
+  background: linear-gradient(150deg, var(--gold-soft), var(--gold));
+}
+.stc-btn.gold:hover:not(:disabled) {
+  color: var(--gold-ink);
+  border-color: var(--gold-soft);
+  background: linear-gradient(150deg, #ffd766, var(--gold-soft));
+}
+.stc-btn.gold-soft {
+  color: var(--gold-soft);
+  border-color: var(--gold-ring);
+  background: var(--gold-wash);
+}
+.stc-btn.gold-soft:hover:not(:disabled) {
+  color: var(--gold-soft);
+  background: rgba(234,157,19,.18);
+}
+.stc-btn.danger {
+  color: var(--red);
+  border-color: var(--red-line);
+  background: var(--red-dim);
+}
+.stc-btn.danger:hover:not(:disabled) {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(240,97,107,.2);
+}
+.stc-btn.sm { font-size: 12px; padding: 6px 11px; gap: 5px; }
+.stc-btn.block { width: 100%; }
+
+/* botón sólo icono */
+.stc-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--dim);
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: .14s;
+}
+.stc-icon-btn:hover:not(:disabled) {
+  color: var(--gold-soft);
+  border-color: var(--gold-ring);
+  background: var(--gold-wash);
+}
+.stc-icon-btn.danger:hover:not(:disabled) {
+  color: var(--red);
+  border-color: var(--red-line);
+  background: var(--red-dim);
+}
+.stc-icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ─── Insignias ───────────────────────────────────────────── */
+.stc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--ui);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 3px 9px;
+  border-radius: var(--r-xs);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.stc-badge.gold    { color: var(--gold-soft); background: var(--gold-wash); border-color: var(--gold-ring); }
+.stc-badge.green   { color: var(--green);     background: var(--green-dim); border-color: var(--green-line); }
+.stc-badge.red     { color: var(--red);       background: var(--red-dim);   border-color: var(--red-line); }
+.stc-badge.blue    { color: var(--blue);      background: var(--blue-dim);  border-color: var(--blue-line); }
+.stc-badge.neutral { color: var(--dim);       background: rgba(255,255,255,.05); border-color: var(--line); }
+html:not(.dark) .stc-badge.neutral { background: rgba(0,0,0,.04); }
+.stc-badge.outline { color: var(--faint); background: transparent; border-style: dashed; border-color: var(--line-2); }
+.stc-badge.solid   { color: var(--gold-ink); background: var(--gold); border-color: var(--gold); }
+
+/* ─── Barra de progreso ───────────────────────────────────── */
+.stc-meter {
+  height: 5px;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.stc-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+  transition: width .35s ease;
+}
+
+/* ─── Estado vacío ────────────────────────────────────────── */
+.stc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--faint);
+  font-size: 13px;
+}
+.stc-empty .iconify,
+.stc-empty svg { width: 30px; height: 30px; opacity: .5; }
+
+/* ─── Franja de consola ───────────────────────────────────── */
+.stc-console {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+.stc-cseg {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 22px;
+  border-right: 1px solid var(--line);
+}
+.stc-cseg:last-child { border-right: none; }
+.stc-cseg.identity {
+  flex-direction: row;
+  align-items: center;
+  gap: 13px;
+  min-width: 248px;
+  flex: 1;
+}
+
+.stc-id-glyph {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--gold-ring);
+}
+
+.stc-cval {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  color: var(--text);
+}
+.stc-cval.green { color: var(--green); }
+.stc-cval.dim   { color: var(--dim); }
+
+/* ─── Punto de estado ─────────────────────────────────────── */
+.stc-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+.stc-dot.green { background: var(--green); }
+.stc-dot.green::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--green);
+  opacity: .6;
+  animation: stc-ping 2s ease-out infinite;
+}
+.stc-dot.red  { background: var(--red); }
+.stc-dot.gold { background: var(--gold); }
+
+@keyframes stc-ping {
+  0%   { transform: scale(.7); opacity: .7; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ─── Métrica ─────────────────────────────────────────────── */
+.stc-tile {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.stc-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.stc-tile-head .lbl {
+  font-family: var(--ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.stc-tile-head .iconify,
+.stc-tile-head svg { color: var(--gold); opacity: .8; }
+
+/* Big Shoulders para las cifras grandes — carácter de marca */
+.stc-tile-val {
+  font-family: var(--disp);
+  font-variant-numeric: tabular-nums;
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  line-height: .92;
+  color: var(--text);
+}
+.stc-tile-val.gold { color: var(--gold); }
+.stc-tile-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stc-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: var(--r-xs);
+}
+.stc-delta.up   { color: var(--green); background: var(--green-dim); }
+.stc-delta.down { color: var(--red);   background: var(--red-dim); }
+.stc-delta-note {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+/* ─── Sparkline ───────────────────────────────────────────── */
+.stc-spark {
+  width: 100%;
+  height: 38px;
+  display: block;
+  margin-top: 2px;
+}
+
+/* ─── Panel de gráfico ────────────────────────────────────── */
+.stc-chart-panel {
+  padding: 20px 22px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Control segmentado ──────────────────────────────────── */
+.stc-seg {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.stc-seg button {
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dim);
+  padding: 7px 13px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--line);
+  cursor: pointer;
+  transition: .14s;
+  white-space: nowrap;
+}
+.stc-seg button:last-child { border-right: none; }
+.stc-seg button:hover {
+  color: var(--text);
+  background: rgba(255,255,255,.03);
+}
+html:not(.dark) .stc-seg button:hover { background: rgba(0,0,0,.03); }
+.stc-seg button.on {
+  color: var(--gold-ink);
+  font-weight: 600;
+  background: var(--gold);
+}
+
+/* ─── Campos ──────────────────────────────────────────────── */
+.stc-dfield {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.stc-dfield label {
+  font-family: var(--ui);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.stc-dfield input {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 6px 9px;
+  outline: none;
+  color-scheme: dark;
+  transition: .14s;
+}
+html:not(.dark) .stc-dfield input { color-scheme: light; }
+.stc-dfield input:focus { border-color: var(--gold-ring); }
+
+.stc-input {
+  width: 100%;
+  font-family: var(--ui);
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  outline: none;
+  transition: .15s;
+}
+.stc-input::placeholder { color: var(--faint); }
+.stc-input:focus {
+  border-color: var(--gold-ring);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+
+/* ─── Lectura del gráfico ─────────────────────────────────── */
+.stc-readout {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  background: #000;
+  border: 1px solid var(--gold-line);
+  transform: translate(-50%, -122%);
+  transition: opacity .12s;
+}
+html:not(.dark) .stc-readout {
+  background: #141210;
+  color: #f0f0f0;
+}
+.stc-readout .rv {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--gold-soft);
+}
+.stc-readout .rl {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: #8f8f8f;
+  margin-top: 1px;
+}
+
+/* ─── Feed de actividad ───────────────────────────────────── */
+.stc-act-panel { padding: 18px 22px 8px; }
+
+.stc-act-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.stc-link-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dim);
+  cursor: pointer;
+  text-decoration: none;
+  transition: .15s;
+}
+.stc-link-all:hover { color: var(--gold-soft); }
+
+.stc-feed { display: flex; flex-direction: column; }
+.stc-fitem {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+}
+.stc-fitem:first-child { border-top: none; }
+
+.stc-fav {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--text);
+  background: #161616;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+html:not(.dark) .stc-fav { color: #f0f0f0; background: #2a2a2a; }
+.stc-fav img { width: 100%; height: 100%; object-fit: cover; }
+
+.stc-fbody { flex: 1; min-width: 0; }
+.stc-fbody .fl  { font-size: 14px; color: var(--dim); }
+.stc-fbody .fl b   { font-weight: 600; color: var(--text); }
+.stc-fbody .fl .tag { color: var(--gold-soft); font-weight: 500; }
+.stc-ftype {
+  font-family: var(--ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-top: 3px;
+}
+.stc-ftime {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--dim);
+  text-align: right;
+  white-space: nowrap;
+}
+.stc-ftime .d {
+  color: var(--faint);
+  font-size: 10.5px;
+  display: block;
+  margin-top: 2px;
+}
+
+/* ─── Barra de desplazamiento ─────────────────────────────── */
+.stc-scroll::-webkit-scrollbar { width: 10px; }
+.stc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.09);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.stc-scroll::-webkit-scrollbar-thumb:hover { background: var(--gold-line); background-clip: content-box; }
+html:not(.dark) .stc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,.18);
+  background-clip: content-box;
+}
+
+/* ─── Selección ───────────────────────────────────────────── */
+::selection { background: var(--gold-ring); color: var(--text); }
+
+/* ─── Franja de consola — móvil ───────────────────────────── */
+@media (max-width: 640px) {
+  .stc-console {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .stc-cseg.identity {
+    grid-column: 1 / -1;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .stc-cseg:nth-child(2),
+  .stc-cseg:nth-child(3) {
+    border-bottom: 1px solid var(--line);
+  }
+  .stc-cseg:nth-child(3),
+  .stc-cseg:nth-child(5) {
+    border-right: none;
+  }
+  .stc-page-title { font-size: 28px; }
+}
+
+/* ─── Transiciones de página / layout ─────────────────────── */
+.page-enter-active, .page-leave-active { transition: opacity .22s ease-out, transform .22s ease-out; }
+.page-enter-from,   .page-leave-to     { opacity: 0; transform: translateY(6px); }
+.page-enter-to,     .page-leave-from   { opacity: 1; transform: translateY(0); }
+.layout-enter-active, .layout-leave-active { transition: opacity .22s; }
+.layout-enter-from,   .layout-leave-to     { opacity: 0; }
+.layout-enter-to,     .layout-leave-from   { opacity: 1; }

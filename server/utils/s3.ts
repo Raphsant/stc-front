@@ -77,3 +77,23 @@ export async function createDownloadUrl(key: string, expiresIn = 300): Promise<s
     })
     return getSignedUrl(getClient(), cmd, { expiresIn })
 }
+
+// Fetch the raw bytes of an object. Used to feed image data to the AI for
+// analysis — the bucket is private, so we pull server-side rather than exposing
+// a public URL.
+export async function getObjectBuffer(key: string): Promise<{ buffer: Buffer; contentType: string }> {
+    const cmd = new GetObjectCommand({
+        Bucket: getBucket(),
+        Key: key,
+    })
+    const res = await getClient().send(cmd)
+    if (!res.Body) {
+        throw createError({ statusCode: 502, statusMessage: 'Empty object body from S3' })
+    }
+    // In the Node runtime the SDK returns a stream with this helper.
+    const bytes = await (res.Body as any).transformToByteArray()
+    return {
+        buffer: Buffer.from(bytes),
+        contentType: res.ContentType || 'application/octet-stream',
+    }
+}

@@ -13,6 +13,7 @@ export default defineVitestConfig({
     resolve: {
         alias: {
             '#server': resolve('./server'),
+            '#shared': resolve('./shared'),
             '#nuxt/mongoose': resolve('./tests/mocks/nuxt-mongoose.ts'),
         },
     },

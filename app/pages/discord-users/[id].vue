@@ -13,17 +13,21 @@ const {
   refresh: refreshJournal,
 } = useFetch<JournalEntry[]>(`/api/discord-users/${userId}/journal`, { default: () => [] })
 
-interface PainPoint {
-  category: string
-  detail: string
-  severity: 'baja' | 'media' | 'alta'
-}
-
-interface AnalysisResult {
-  summary: string
-  sentiment: 'positivo' | 'neutral' | 'negativo'
-  painPoints: PainPoint[]
-}
+import {
+  ACTION_TYPE_LABELS_ES,
+  ALPHA_SIGNAL_LABELS_ES,
+  ALPHA_SIGNAL_TONE,
+  CATEGORY_LABELS_ES,
+  DELTA_SCHEMA_VERSION,
+  PRIORITY_LABELS_ES,
+  PRIORITY_TONE,
+  actionTypeLabel,
+  categoryLabel,
+  type AlphaFitSignal,
+  type BestFitCategory,
+  type DeltaAnalysisResult,
+  type Priority,
+} from '#shared/deltaAnalysis'
 
 interface JournalEntry {
   _id: string
@@ -39,32 +43,35 @@ interface JournalEntry {
   markedForDeletionAt?: string | null
   markedForDeletionBy?: string | null
   analysisStatus?: 'none' | 'pending' | 'done' | 'error'
-  analysisResult?: AnalysisResult | null
+  analysisResult?: DeltaAnalysisResult | null
   analyzedAt?: string | null
   analysisError?: string | null
+  followUpStatus?: 'pending' | 'done' | null
+  followUpPriority?: Priority | null
+  recontactDate?: string | null
+  followUpDoneAt?: string | null
+  followUpDoneBy?: string | null
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  precio: 'Precio / valor',
-  tiempo: 'Falta de tiempo',
-  contenido: 'Contenido',
-  soporte: 'Soporte / atención',
-  comunidad: 'Comunidad',
-  plataforma: 'Plataforma / técnico',
-  expectativas: 'Expectativas',
-  resultados: 'Resultados / progreso',
-  competencia: 'Competencia',
-  personal: 'Circunstancias personales',
-  otro: 'Otro',
+/** Entries analyzed before the Delta rewrite carry the old pain-point shape. */
+function isDeltaResult(entry: JournalEntry): boolean {
+  return entry.analysisResult?.schema_version === DELTA_SCHEMA_VERSION
 }
 
-function categoryLabel(cat: string) {
-  return CATEGORY_LABELS[cat] ?? cat
+function formatDay(date?: string | null) {
+  if (!date) return null
+  return new Date(date).toLocaleDateString('es-ES', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  })
 }
 
-// Tonos de la marca para las insignias
-function severityTone(sev: string) {
-  return sev === 'alta' ? 'red' : sev === 'media' ? 'gold' : 'neutral'
+async function copyMessage(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.add({ title: 'Mensaje copiado', color: 'success' })
+  } catch {
+    toast.add({ title: 'No se pudo copiar el mensaje', color: 'error' })
+  }
 }
 
 const ENGAGEMENT_TONE: Record<string, string> = {
@@ -206,7 +213,7 @@ async function analyzeEntry(entry: JournalEntry) {
   try {
     await $fetch(`/api/discord-users/${userId}/journal/${entry._id}/analyze`, { method: 'POST' })
     await refreshJournal()
-    toast.add({ title: 'Imagen analizada', color: 'success' })
+    toast.add({ title: 'Conversación analizada', color: 'success' })
   } catch (e: any) {
     toast.add({ title: 'Error al analizar', description: e?.statusMessage || e?.message || '', color: 'error' })
   } finally {
@@ -214,21 +221,31 @@ async function analyzeEntry(entry: JournalEntry) {
   }
 }
 
-// Per-user rollup: pain points grouped by category across this user's analyzed
-// screenshots, ordered by frequency.
-const painPointRollup = computed(() => {
-  const map = new Map<string, { category: string; count: number; details: PainPoint[] }>()
+// Per-user rollup: which conversation categories keep coming up for this
+// member, counting a thread once per distinct category it carries.
+const categoryRollup = computed(() => {
+  const map = new Map<BestFitCategory, { category: BestFitCategory; count: number; primaryCount: number }>()
   for (const entry of journal.value ?? []) {
-    if (entry.analysisStatus !== 'done' || !entry.analysisResult) continue
-    for (const pp of entry.analysisResult.painPoints ?? []) {
-      const existing = map.get(pp.category) ?? { category: pp.category, count: 0, details: [] }
+    if (entry.analysisStatus !== 'done' || !isDeltaResult(entry)) continue
+    const result = entry.analysisResult!
+    const cats = new Set<BestFitCategory>([
+      result.best_fit_category,
+      ...(result.additional_categories ?? []),
+    ])
+    for (const cat of cats) {
+      const existing = map.get(cat) ?? { category: cat, count: 0, primaryCount: 0 }
       existing.count++
-      existing.details.push(pp)
-      map.set(pp.category, existing)
+      if (cat === result.best_fit_category) existing.primaryCount++
+      map.set(cat, existing)
     }
   }
   return [...map.values()].sort((a, b) => b.count - a.count)
 })
+
+/** The open follow-up for this member, if any — surfaced above the timeline. */
+const openFollowUps = computed(() =>
+  (journal.value ?? []).filter(e => e.followUpStatus === 'pending' && isDeltaResult(e)),
+)
 
 useSeoMeta({
   title: computed(() => user.value ? `${user.value.username} - STC Control` : 'Usuario - STC Control'),
@@ -683,20 +700,22 @@ function initial(name?: string) {
             Inicia sesión como administrador para añadir entradas.
           </div>
 
-          <!-- Resumen de puntos de dolor -->
-          <div v-if="painPointRollup.length" class="up-rollup">
+          <!-- Resumen de categorías de conversación -->
+          <div v-if="categoryRollup.length" class="up-rollup">
             <div class="up-rollup-head">
               <span class="up-rollup-t">
                 <UIcon name="i-lucide-sparkles" class="w-4 h-4" />
-                Puntos de dolor del cliente
+                Categorías recurrentes
+                <span v-if="openFollowUps.length" class="stc-badge gold" style="margin-left:4px">
+                  {{ openFollowUps.length }} seguimiento{{ openFollowUps.length === 1 ? '' : 's' }} abierto{{ openFollowUps.length === 1 ? '' : 's' }}
+                </span>
               </span>
               <NuxtLink to="/journal/pain-points" class="up-rollup-link">Ver panel global →</NuxtLink>
             </div>
-            <div class="up-stack" style="gap:8px">
-              <div v-for="row in painPointRollup" :key="row.category" class="up-rollup-row">
-                <span class="stc-badge gold">{{ categoryLabel(row.category) }} · {{ row.count }}</span>
-                <span class="up-rollup-d">{{ row.details.map(d => d.detail).join(' · ') }}</span>
-              </div>
+            <div class="up-rollup-cats">
+              <span v-for="row in categoryRollup" :key="row.category" class="stc-badge gold">
+                {{ categoryLabel(row.category) }} · {{ row.count }}
+              </span>
             </div>
           </div>
 
@@ -738,26 +757,122 @@ function initial(name?: string) {
                   <span>Marcado para eliminar por <b>{{ entry.markedForDeletionBy }}</b></span>
                 </div>
 
-                <!-- Análisis IA -->
+                <!-- Análisis Delta -->
                 <div
-                  v-if="entry.type === 'image' && entry.analysisStatus === 'done' && entry.analysisResult"
+                  v-if="entry.type === 'image' && entry.analysisStatus === 'done' && isDeltaResult(entry)"
                   class="up-ai"
                 >
-                  <span class="up-ai-t">
-                    <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
-                    Análisis IA
-                  </span>
-                  <p class="up-ai-p">{{ entry.analysisResult.summary }}</p>
-                  <div v-if="entry.analysisResult.painPoints.length" class="up-ai-pps">
+                  <div class="up-ai-head">
+                    <span class="up-ai-t">
+                      <UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />
+                      Análisis de conversación
+                    </span>
                     <span
-                      v-for="(pp, i) in entry.analysisResult.painPoints"
-                      :key="i"
-                      class="stc-badge"
-                      :class="severityTone(pp.severity)"
-                    >{{ categoryLabel(pp.category) }}: {{ pp.detail }}</span>
+                      v-if="entry.followUpStatus === 'done'"
+                      class="stc-badge green"
+                      :title="entry.followUpDoneBy ? `Hecho por ${entry.followUpDoneBy}` : ''"
+                    >
+                      <UIcon name="i-lucide-check" class="w-3 h-3" />
+                      Seguimiento hecho
+                    </span>
                   </div>
-                  <p v-else class="up-ai-none">No se detectaron puntos de dolor.</p>
+
+                  <!-- Clasificación -->
+                  <div class="up-ai-tags">
+                    <span class="stc-badge gold">{{ categoryLabel(entry.analysisResult!.best_fit_category) }}</span>
+                    <span
+                      v-for="cat in entry.analysisResult!.additional_categories"
+                      :key="cat"
+                      class="stc-badge neutral"
+                    >{{ categoryLabel(cat) }}</span>
+                    <span
+                      class="stc-badge"
+                      :class="ALPHA_SIGNAL_TONE[entry.analysisResult!.alpha_fit_signal]"
+                    >
+                      Alpha: {{ ALPHA_SIGNAL_LABELS_ES[entry.analysisResult!.alpha_fit_signal] }}
+                    </span>
+                    <span class="stc-badge" :class="PRIORITY_TONE[entry.analysisResult!.priority]">
+                      Prioridad {{ PRIORITY_LABELS_ES[entry.analysisResult!.priority] }}
+                    </span>
+                  </div>
+
+                  <!-- Lectura forense -->
+                  <p v-if="entry.analysisResult!.forensic_analysis" class="up-ai-p">
+                    {{ entry.analysisResult!.forensic_analysis }}
+                  </p>
+
+                  <blockquote v-if="entry.analysisResult!.key_customer_quote" class="up-quote">
+                    {{ entry.analysisResult!.key_customer_quote }}
+                  </blockquote>
+
+                  <!-- Qué se hizo bien / qué mejorar -->
+                  <div class="up-ai-cols">
+                    <div v-if="entry.analysisResult!.what_agent_did_well.length">
+                      <span class="stc-eyebrow">Bien hecho</span>
+                      <ul class="up-ai-list good">
+                        <li v-for="(item, i) in entry.analysisResult!.what_agent_did_well" :key="i">{{ item }}</li>
+                      </ul>
+                    </div>
+                    <div v-if="entry.analysisResult!.guideline_improvements.length">
+                      <span class="stc-eyebrow">A mejorar</span>
+                      <ul class="up-ai-list warn">
+                        <li v-for="(item, i) in entry.analysisResult!.guideline_improvements" :key="i">{{ item }}</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <!-- Patrón nuevo -->
+                  <p v-if="entry.analysisResult!.newly_detected_pattern" class="up-ai-pattern">
+                    <UIcon name="i-lucide-lightbulb" class="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Patrón nuevo: {{ entry.analysisResult!.newly_detected_pattern }}</span>
+                  </p>
+
+                  <!-- Siguiente acción -->
+                  <div class="up-next">
+                    <div class="up-next-head">
+                      <span class="stc-badge solid">{{ actionTypeLabel(entry.analysisResult!.follow_up.action_type) }}</span>
+                      <span v-if="entry.recontactDate" class="up-next-date stc-mono">
+                        <UIcon name="i-lucide-calendar-clock" class="w-3.5 h-3.5" />
+                        Recontactar el {{ formatDay(entry.recontactDate) }}
+                      </span>
+                    </div>
+                    <p v-if="entry.analysisResult!.follow_up.objective" class="up-next-obj">
+                      {{ entry.analysisResult!.follow_up.objective }}
+                    </p>
+                    <div v-if="entry.analysisResult!.follow_up.suggested_message_es" class="up-msg">
+                      <p class="up-msg-text">{{ entry.analysisResult!.follow_up.suggested_message_es }}</p>
+                      <button
+                        class="stc-btn sm"
+                        title="Copiar mensaje"
+                        @click="copyMessage(entry.analysisResult!.follow_up.suggested_message_es)"
+                      >
+                        <UIcon name="i-lucide-copy" class="w-3.5 h-3.5" />
+                        Copiar
+                      </button>
+                    </div>
+                    <p v-if="entry.analysisResult!.recontact_rationale" class="up-next-why">
+                      {{ entry.analysisResult!.recontact_rationale }}
+                    </p>
+                  </div>
+
+                  <div v-if="entry.analysisResult!.data_quality_flags.length" class="up-ai-flags">
+                    <span
+                      v-for="flag in entry.analysisResult!.data_quality_flags"
+                      :key="flag"
+                      class="stc-badge outline long"
+                    >{{ flag }}</span>
+                  </div>
                 </div>
+
+                <!-- Análisis con el formato anterior (pre-Delta) -->
+                <div
+                  v-else-if="entry.type === 'image' && entry.analysisStatus === 'done'"
+                  class="up-ai-legacy"
+                >
+                  <UIcon name="i-lucide-history" class="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Análisis con formato antiguo — vuelve a analizar para obtener el seguimiento.</span>
+                </div>
+
                 <div
                   v-else-if="entry.type === 'image' && entry.analysisStatus === 'error'"
                   class="up-ai-err"
@@ -813,7 +928,7 @@ function initial(name?: string) {
           <div v-if="user.previousUsernames?.length">
             <span class="stc-eyebrow">Nombres anteriores</span>
             <div class="up-prevs">
-              <span v-for="prev in user.previousUsernames" :key="prev" class="stc-badge outline">{{ prev }}</span>
+              <span v-for="prev in user.previousUsernames" :key="prev" class="stc-badge outline long">{{ prev }}</span>
             </div>
           </div>
           <div>
@@ -1106,8 +1221,7 @@ html:not(.dark) .hm-0 { background: #e6e2d8; }
 }
 .up-rollup-link { font-size: 11.5px; font-weight: 600; color: var(--gold-soft); text-decoration: none; }
 .up-rollup-link:hover { text-decoration: underline; }
-.up-rollup-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.up-rollup-d { font-size: 11.5px; color: var(--dim); }
+.up-rollup-cats { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ── Línea de tiempo ── */
 .up-timeline {
@@ -1185,13 +1299,20 @@ html:not(.dark) .hm-0 { background: #e6e2d8; }
 }
 .up-flag b { font-weight: 600; }
 
-/* ── Análisis IA ── */
+/* ── Análisis Delta ── */
 .up-ai {
   margin-top: 12px;
-  padding: 12px 14px;
+  padding: 13px 15px;
   border-radius: var(--r-sm);
   background: var(--gold-wash);
   border: 1px solid var(--gold-ring);
+}
+.up-ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .up-ai-t {
   display: inline-flex;
@@ -1203,17 +1324,104 @@ html:not(.dark) .hm-0 { background: #e6e2d8; }
   text-transform: uppercase;
   color: var(--gold-soft);
 }
-.up-ai-p    { font-size: 13px; color: var(--dim); line-height: 1.55; margin-top: 8px; }
-.up-ai-pps  { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.up-ai-none { font-size: 11.5px; font-style: italic; color: var(--faint); margin-top: 8px; }
+.up-ai-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.up-ai-p    { font-size: 13px; color: var(--dim); line-height: 1.55; margin-top: 11px; }
+
+.up-quote {
+  margin: 11px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--gold);
+  background: rgba(0,0,0,.25);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+html:not(.dark) .up-quote { background: rgba(0,0,0,.04); }
+
+.up-ai-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.up-ai-list { margin-top: 7px; display: flex; flex-direction: column; gap: 5px; }
+.up-ai-list li {
+  position: relative;
+  padding-left: 15px;
+  font-size: 12.5px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+.up-ai-list li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-weight: 700;
+}
+.up-ai-list.good li::before { content: '✓'; color: var(--green); }
+.up-ai-list.warn li::before { content: '→'; color: var(--gold); }
+
+.up-ai-pattern {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--gold-soft);
+}
+
+/* siguiente acción */
+.up-next {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--gold-ring);
+}
+.up-next-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.up-next-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.up-next-obj { font-size: 12.5px; color: var(--dim); line-height: 1.5; margin-top: 9px; }
+
+.up-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(0,0,0,.3);
+  border: 1px solid var(--line);
+}
+html:not(.dark) .up-msg { background: #fff; }
+.up-msg-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.up-msg .stc-btn { flex-shrink: 0; }
+.up-next-why { font-size: 11.5px; color: var(--faint); margin-top: 8px; }
+
+.up-ai-flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+.up-ai-legacy,
 .up-ai-err {
   display: flex;
   align-items: center;
   gap: 7px;
   margin-top: 12px;
   font-size: 11.5px;
-  color: var(--red);
 }
+.up-ai-legacy { color: var(--faint); }
+.up-ai-err    { color: var(--red); }
 
 .up-entry-actions {
   display: flex;

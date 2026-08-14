@@ -598,6 +598,16 @@ html:not(.dark) .stc-btn:hover:not(:disabled) { background: rgba(0,0,0,.03); }
 html:not(.dark) .stc-badge.neutral { background: rgba(0,0,0,.04); }
 .stc-badge.outline { color: var(--faint); background: transparent; border-style: dashed; border-color: var(--line-2); }
 .stc-badge.solid   { color: var(--gold-ink); background: var(--gold); border-color: var(--gold); }
+/* Insignia de texto largo (banderas de calidad del análisis, etiquetas
+   generadas por IA): salta de línea dentro de la tarjeta en vez de
+   desbordarla, que es lo que hace el nowrap por defecto. */
+.stc-badge.long {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
 
 /* ─── Barra de progreso ───────────────────────────────────── */
 .stc-meter {

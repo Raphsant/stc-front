@@ -101,4 +101,30 @@ describe('GET /api/discord-users', () => {
         const frank = result.find((u: any) => u._id === 'u6')
         expect(frank.meetingCount).toBe(1)
     })
+
+    describe('status filter', () => {
+        beforeEach(async () => {
+            // removedAt: null (schema default / rejoined member)
+            await seedUser('a1', 'active-null')
+            // legacy record with no removedAt field at all
+            await DiscordUser.collection.insertOne({ _id: 'a2', username: 'active-missing', roles: [], previousUsernames: [] })
+            await DiscordUser.create({ _id: 'r1', username: 'removed', roles: [], previousUsernames: [], removedAt: new Date('2025-01-01') })
+        })
+
+        const ids = (rows: any[]) => rows.map((u: any) => u._id).sort()
+
+        it('status=active returns users with null or missing removedAt', async () => {
+            vi.mocked(globalThis.getQuery).mockReturnValue({ status: 'active' })
+            expect(ids(await handler({}))).toEqual(['a1', 'a2'])
+        })
+
+        it('status=removed returns only users with a removedAt date', async () => {
+            vi.mocked(globalThis.getQuery).mockReturnValue({ status: 'removed' })
+            expect(ids(await handler({}))).toEqual(['r1'])
+        })
+
+        it('no status returns everyone', async () => {
+            expect(ids(await handler({}))).toEqual(['a1', 'a2', 'r1'])
+        })
+    })
 })

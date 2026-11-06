@@ -5,8 +5,10 @@ export default defineEventHandler(async (event) => {
         // Runs BEFORE the expensive $lookups — cuts down the working set
         const preMatch: any = {}
         if (q) preMatch.username = { $regex: q, $options: 'i' }
-        if (status === 'active') preMatch.removedAt = { $exists: false }
-        if (status === 'removed') preMatch.removedAt = { $exists: true }
+        // removedAt defaults to null (and is reset to null on rejoin), so match
+        // on null rather than field existence. `null` also matches a missing field.
+        if (status === 'active') preMatch.removedAt = null
+        if (status === 'removed') preMatch.removedAt = { $ne: null }
 
         const hasMeetingFilter = !!(from || to)
         const filteredMeetings: any = hasMeetingFilter

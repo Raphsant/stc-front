@@ -7,6 +7,16 @@ const { loggedIn, session } = useUserSession()
 const { data: user, pending, error } = useFetch(`/api/discord-users/${userId}`)
 const { data: activity, pending: activityPending } = useFetch(`/api/discord-users/${userId}/activity`)
 const { data: watched, pending: watchedPending } = useFetch(`/api/discord-users/${userId}/watched`)
+// ClickFunnels call is slow-ish and optional — don't block the page on it.
+const { data: contact, pending: contactPending, error: contactError } = useFetch<any>(
+  `/api/discord-users/${userId}/contact`, { lazy: true, server: false },
+)
+
+function formatAddress(a: any): string[] {
+  if (!a) return []
+  const cityLine = [a.city, a.region, a.postalCode].filter(Boolean).join(', ')
+  return [a.streetOne, a.streetTwo, cityLine, a.country].filter(Boolean)
+}
 const {
   data: journal,
   pending: journalPending,
@@ -456,6 +466,56 @@ function initial(name?: string) {
             </a>
           </div>
         </div>
+      </section>
+
+      <!-- ── Contacto (ClickFunnels) ───────────────────────── -->
+      <section class="stc-panel">
+        <div class="stc-panel-head">
+          <h2 class="stc-panel-title">
+            <UIcon name="i-lucide-contact" class="w-[18px] h-[18px]" />
+            Contacto
+          </h2>
+          <span class="stc-badge neutral stc-mono">ClickFunnels</span>
+        </div>
+
+        <div v-if="contactPending" class="up-pad up-contact">
+          <USkeleton v-for="n in 4" :key="n" class="h-11 w-full rounded-[7px]" />
+        </div>
+        <div v-else-if="contactError" class="stc-empty">
+          <UIcon name="i-lucide-cloud-off" />
+          <p>No se pudo cargar el contacto de ClickFunnels.</p>
+        </div>
+        <div v-else-if="!contact?.linked" class="stc-empty">
+          <UIcon name="i-lucide-unlink" />
+          <p>Este usuario no está vinculado a un contacto de ClickFunnels.</p>
+        </div>
+        <div v-else-if="contact.missing" class="stc-empty">
+          <UIcon name="i-lucide-user-x" />
+          <p>El contacto {{ contact.contactId }} ya no existe en ClickFunnels.</p>
+        </div>
+        <dl v-else class="up-pad up-contact">
+          <div class="up-cf">
+            <dt>Nombre completo</dt>
+            <dd :class="{ muted: !contact.fullName }">{{ contact.fullName || '—' }}</dd>
+          </div>
+          <div class="up-cf">
+            <dt>Email</dt>
+            <dd v-if="contact.email"><a :href="`mailto:${contact.email}`">{{ contact.email }}</a></dd>
+            <dd v-else class="muted">—</dd>
+          </div>
+          <div class="up-cf">
+            <dt>Teléfono</dt>
+            <dd v-if="contact.phone" class="stc-mono"><a :href="`tel:${contact.phone}`">{{ contact.phone }}</a></dd>
+            <dd v-else class="muted">—</dd>
+          </div>
+          <div class="up-cf">
+            <dt>Dirección</dt>
+            <dd v-if="contact.address">
+              <span v-for="line in formatAddress(contact.address)" :key="line" class="up-cf-line">{{ line }}</span>
+            </dd>
+            <dd v-else class="muted">—</dd>
+          </div>
+        </dl>
       </section>
 
       <!-- ── Actividad ─────────────────────────────────────── -->
@@ -1103,6 +1163,22 @@ html:not(.dark) .hm-0 { background: #e6e2d8; }
 .up-chan-n    { color: var(--gold-soft); font-weight: 600; }
 
 /* ── Vídeos ── */
+/* contacto */
+.up-contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.up-cf {
+  min-width: 0;
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+.up-cf dt { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .04em; }
+.up-cf dd { font-size: 13.5px; color: var(--text); margin-top: 4px; overflow-wrap: anywhere; }
+.up-cf dd.muted { color: var(--faint); }
+.up-cf dd a { color: var(--gold-soft); }
+.up-cf dd a:hover { color: var(--gold); }
+.up-cf-line { display: block; }
+
 .up-vid {
   display: flex;
   align-items: center;

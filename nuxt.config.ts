@@ -31,6 +31,8 @@ export default defineNuxtConfig({
         awsSecretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY,
         s3Bucket: process.env.S3_BUCKET,
         anthropicApiKey: process.env.NUXT_ANTHROPIC_API_KEY,
+        cfToken: process.env.CF2_TOKEN,
+        cfWorkspaceId: process.env.WORKSPACE_ID,
         public: {
             appVersion: pkg.version
         }

@@ -13,12 +13,26 @@ function readConfig() {
     }
 }
 
+// Client options that don't depend on runtime config, so they can be asserted
+// in a test without a Nuxt context.
+//
+// Since v3.729 the AWS SDK adds a CRC32 checksum to PutObject by default. For a
+// PRESIGNED url that checksum is computed at signing time, when there is no
+// body yet — so it bakes in the checksum of an EMPTY payload
+// (x-amz-checksum-crc32=AAAAAA==) and S3 then rejects the browser's upload with
+// BadDigest. Presigned uploads are already integrity-protected by TLS and by
+// the signature, so opt back out.
+export const S3_CLIENT_DEFAULTS = {
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+} as const
+
 function getClient() {
     if (!client) {
         const { region, accessKeyId, secretAccessKey } = readConfig()
         client = new S3Client({
             region,
             credentials: { accessKeyId, secretAccessKey },
+            ...S3_CLIENT_DEFAULTS,
         })
     }
     return client

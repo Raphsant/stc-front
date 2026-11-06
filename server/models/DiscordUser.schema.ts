@@ -34,5 +34,10 @@ export const DiscordUser = defineMongooseModel({
       type: Date,
       default: null,
     },
+    cfContactId: {
+      type: Number,
+      default: null,
+      index: true,
+    },
   },
 })

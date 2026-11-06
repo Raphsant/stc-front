@@ -1,6 +1,6 @@
 export default defineEventHandler(async (event) => {
     try {
-        const { from, to, q, status, sortBy, sortDir } = getQuery(event)
+        const { from, to, q, status, sortBy, sortDir, country, region, city } = getQuery(event)
 
         // Runs BEFORE the expensive $lookups — cuts down the working set
         const preMatch: any = {}
@@ -9,6 +9,13 @@ export default defineEventHandler(async (event) => {
         // on null rather than field existence. `null` also matches a missing field.
         if (status === 'active') preMatch.removedAt = null
         if (status === 'removed') preMatch.removedAt = { $ne: null }
+        // Location (cfLocation, synced by stcbot). country=none → users with no known address.
+        if (country === 'none') preMatch['cfLocation.country'] = null
+        else if (country) preMatch['cfLocation.country'] = country
+        if (country && country !== 'none') {
+            if (region) preMatch['cfLocation.regionKey'] = region === 'none' ? null : region
+            if (city) preMatch['cfLocation.cityKey'] = city
+        }
 
         const hasMeetingFilter = !!(from || to)
         const filteredMeetings: any = hasMeetingFilter
@@ -107,6 +114,7 @@ export default defineEventHandler(async (event) => {
                     messageCount: 1,
                     joinedAt: 1,
                     removedAt: 1,
+                    cfLocation: 1,
                     meetingCount: { $size: filteredMeetings },
                     lastMeeting: { $max: '$meetings.occurredAt' },
                     lastMeetingAt: { $max: '$meetings.occurredAt' },

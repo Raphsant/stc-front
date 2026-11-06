@@ -20,6 +20,10 @@ const dateFrom      = ref('')
 const dateTo        = ref('')
 const page          = ref(1)
 const popoverOpen   = ref(false)
+// Location: country code | 'none' (sin ubicación); region/city are stcbot's normalized keys.
+const country       = ref('')
+const region        = ref('')
+const city          = ref('')
 
 const sortableKeys = new Set<OrdenKey>(['meetings', 'messages30d', 'lifetime', 'joinedAt'])
 const sortDirDisabled = computed(() => !sortableKeys.has(orden.value))
@@ -55,9 +59,42 @@ const { data: users, pending } = useFetch('/api/discord-users', {
     sortDir: dir.value,
     ...(dateFrom.value ? { from: dateFrom.value } : {}),
     ...(dateTo.value   ? { to:   dateTo.value   } : {}),
+    ...(country.value  ? { country: country.value } : {}),
+    ...(region.value   ? { region:  region.value  } : {}),
+    ...(city.value     ? { city:    city.value    } : {}),
   })),
   default: () => [],
 })
+
+// Counts follow the Estado filter so the dropdowns match the list.
+const { data: locations } = useFetch('/api/discord-users/locations', {
+  query: computed(() => (estadoToStatus[estado.value] ? { status: estadoToStatus[estado.value] } : {})),
+  lazy: true,
+  default: () => ({ noneCount: 0, countries: [] as any[] }),
+})
+
+// ISO code → "🇪🇸 España", using the browser's own country names.
+const countryNames = new Intl.DisplayNames(['es'], { type: 'region' })
+function countryLabel(code: string) {
+  const flag = String.fromCodePoint(...[...code].map(c => 0x1F1E6 + c.charCodeAt(0) - 65))
+  let name = code
+  try { name = countryNames.of(code) ?? code } catch {}
+  return `${flag} ${name}`
+}
+
+const selectedCountry = computed(() => locations.value?.countries.find((c: any) => c.code === country.value))
+const regionOptions   = computed(() => selectedCountry.value?.regions ?? [])
+const cityOptions     = computed(() => regionOptions.value.find((r: any) => r.key === region.value)?.cities ?? [])
+
+function setCountry(v: string) {
+  country.value = v
+  region.value  = ''
+  city.value    = ''
+}
+function setRegion(v: string) {
+  region.value = v
+  city.value   = ''
+}
 
 // ── client-side filters ───────────────────────────────────
 function classifyRole(role: string): 'alpha' | 'delta' | 'other' {
@@ -108,7 +145,7 @@ function visiblePages(cur: number, total: number): (number | '...')[] {
 const filtersActive = computed(() =>
   !!(q.value || selectedRoles.value.length || noMeetings.value ||
      estado.value !== 'activos' || orden.value !== 'recent' ||
-     dateFrom.value || dateTo.value),
+     dateFrom.value || dateTo.value || country.value),
 )
 
 function toggleRole(role: string) {
@@ -144,6 +181,7 @@ function clearAll() {
   dir.value           = 'desc'
   dateFrom.value      = ''
   dateTo.value        = ''
+  setCountry('')
   page.value          = 1
   popoverOpen.value   = false
 }
@@ -158,7 +196,7 @@ onMounted(() => {
 })
 
 // reset page on server-side filter changes
-watch([q, estado, orden, dir, dateFrom, dateTo], () => { page.value = 1 })
+watch([q, estado, orden, dir, dateFrom, dateTo, country, region, city], () => { page.value = 1 })
 
 // ── user display helpers ──────────────────────────────────
 // Tonos profundos y desaturados — distinguibles al escanear la lista
@@ -333,7 +371,52 @@ function goNext() { if (page.value < totalPages.value) page.value++ }
       </div>
     </div>
 
-    <!-- Row 3: ordenar + direction + periodo -->
+    <!-- Row 3: ubicación (país → provincia → ciudad) -->
+    <div class="u-frow u-divline">
+      <div class="u-fgroup u-loc">
+        <span class="stc-eyebrow" style="margin-right:2px">Ubicación</span>
+        <select
+          class="u-select"
+          :class="{ set: country }"
+          :value="country"
+          aria-label="País"
+          @change="setCountry(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">Todos los países</option>
+          <option v-for="c in locations?.countries" :key="c.code" :value="c.code">
+            {{ countryLabel(c.code) }} ({{ c.count }})
+          </option>
+          <option v-if="locations?.noneCount" value="none">Sin ubicación ({{ locations.noneCount }})</option>
+        </select>
+        <select
+          class="u-select"
+          :class="{ set: region }"
+          :value="region"
+          :disabled="!selectedCountry"
+          aria-label="Provincia o estado"
+          @change="setRegion(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">Todas las provincias</option>
+          <option v-for="r in regionOptions" :key="r.key" :value="r.key">
+            {{ r.name ?? 'Sin provincia' }} ({{ r.count }})
+          </option>
+        </select>
+        <select
+          v-model="city"
+          class="u-select"
+          :class="{ set: city }"
+          :disabled="!cityOptions.length"
+          aria-label="Ciudad"
+        >
+          <option value="">Todas las ciudades</option>
+          <option v-for="c in cityOptions" :key="c.key" :value="c.key">
+            {{ c.name }} ({{ c.count }})
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 4: ordenar + direction + periodo -->
     <div class="u-frow u-divline">
       <div class="u-fgroup">
         <span class="stc-eyebrow" style="margin-right:2px">Ordenar</span>
@@ -595,6 +678,27 @@ function goNext() { if (page.value < totalPages.value) page.value++ }
 .u-filters { padding: 15px 18px; display: flex; flex-direction: column; gap: 13px; }
 .u-frow    { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .u-divline { padding-top: 13px; border-top: 1px solid var(--line); }
+
+/* ubicación */
+.u-loc { flex-wrap: wrap; }
+.u-select {
+  font-family: var(--ui);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 6px 9px;
+  max-width: 230px;
+  outline: none;
+  cursor: pointer;
+  color-scheme: dark;
+  transition: .14s;
+}
+html:not(.dark) .u-select { color-scheme: light; }
+.u-select:focus { border-color: var(--gold-ring); }
+.u-select.set { border-color: var(--gold-ring); background: var(--gold-wash); }
+.u-select:disabled { opacity: .45; cursor: not-allowed; }
 .u-fgroup  { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 .u-divider-v { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; min-height: 24px; }
 
@@ -844,6 +948,7 @@ html:not(.dark) .u-pbtn:hover:not(:disabled):not(.on) { background: rgba(0,0,0,.
   .u-filters { padding: 12px 14px; }
   .u-frow    { gap: 8px; }
   .u-search  { min-width: 0; }
+  .u-select  { flex: 1 1 100%; max-width: none; }
   .u-divider-v { display: none; }
 
   /* Sort row: stack label above a horizontally-scrollable bar */

@@ -58,7 +58,7 @@ describe('GET /api/discord-users/:id/contact', () => {
         fetchMock.mockImplementation(async (url: string) => {
             if (url.endsWith('/contacts/123')) {
                 return jsonRes(200, {
-                    id: 123, first_name: 'Bob ', last_name: 'Smith',
+                    id: 123, public_id: 'AbC12', workspace_id: 77, first_name: 'Bob ', last_name: 'Smith',
                     email_address: 'bob@example.com', phone_number: '+1 555 0100',
                 })
             }
@@ -75,10 +75,11 @@ describe('GET /api/discord-users/:id/contact', () => {
 
         const result = await handler({})
 
-        expect(fetchMock.mock.calls[1][0]).toContain('/workspaces/99/orders?filter[contact_id]=123')
+        expect(fetchMock.mock.calls[1][0]).toContain('/workspaces/77/orders?filter[contact_id]=123')
         expect(result).toEqual({
             linked: true,
             contactId: 123,
+            profileUrl: 'https://eduardobricenosteam309bd.myclickfunnels.com/account/contacts/AbC12',
             fullName: 'Bob Smith',
             email: 'bob@example.com',
             phone: '+1 555 0100',
@@ -99,7 +100,9 @@ describe('GET /api/discord-users/:id/contact', () => {
         )
 
         const result = await handler({})
-        expect(result).toMatchObject({ linked: true, fullName: 'Carol', phone: null, address: null })
+        expect(result).toMatchObject({ linked: true, fullName: 'Carol', profileUrl: null, phone: null, address: null })
+        // No workspace_id on the contact → falls back to the configured one
+        expect(fetchMock.mock.calls[1][0]).toContain('/workspaces/99/orders')
     })
 
     it('flags a contact that no longer exists in CF', async () => {

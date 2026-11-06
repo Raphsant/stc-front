@@ -475,7 +475,17 @@ function initial(name?: string) {
             <UIcon name="i-lucide-contact" class="w-[18px] h-[18px]" />
             Contacto
           </h2>
-          <span class="stc-badge neutral stc-mono">ClickFunnels</span>
+          <a
+            v-if="contact?.profileUrl"
+            :href="contact.profileUrl"
+            target="_blank"
+            rel="noopener"
+            class="stc-btn sm"
+          >
+            Ver en ClickFunnels
+            <UIcon name="i-lucide-external-link" class="w-3.5 h-3.5" />
+          </a>
+          <span v-else class="stc-badge neutral stc-mono">ClickFunnels</span>
         </div>
 
         <div v-if="contactPending" class="up-pad up-contact">

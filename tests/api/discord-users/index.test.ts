@@ -127,4 +127,43 @@ describe('GET /api/discord-users', () => {
             expect(ids(await handler({}))).toEqual(['a1', 'a2', 'r1'])
         })
     })
+
+    describe('location filter', () => {
+        const loc = (country: string | null, regionKey: string | null, cityKey: string | null) =>
+            ({ country, region: null, regionKey, city: null, cityKey, syncedAt: null })
+
+        beforeEach(async () => {
+            await DiscordUser.create({ _id: 'mad', username: 'mad', cfLocation: loc('ES', 'M', 'madrid') })
+            await DiscordUser.create({ _id: 'val', username: 'val', cfLocation: loc('ES', 'M', 'valdemoro') })
+            await DiscordUser.create({ _id: 'bcn', username: 'bcn', cfLocation: loc('ES', 'B', 'barcelona') })
+            await DiscordUser.create({ _id: 'tx',  username: 'tx',  cfLocation: loc('US', 'TX', 'austin') })
+            await seedUser('nowhere', 'nowhere')
+        })
+
+        const ids = (rows: any[]) => rows.map((u: any) => u._id).sort()
+        const run = async (q: any) => {
+            vi.mocked(globalThis.getQuery).mockReturnValue(q)
+            return ids(await handler({}))
+        }
+
+        it('filters by country', async () => {
+            expect(await run({ country: 'ES' })).toEqual(['bcn', 'mad', 'val'])
+        })
+
+        it('filters by country + region', async () => {
+            expect(await run({ country: 'ES', region: 'M' })).toEqual(['mad', 'val'])
+        })
+
+        it('filters by country + region + city', async () => {
+            expect(await run({ country: 'ES', region: 'M', city: 'valdemoro' })).toEqual(['val'])
+        })
+
+        it('country=none returns users with no known location', async () => {
+            expect(await run({ country: 'none' })).toEqual(['nowhere'])
+        })
+
+        it('ignores region/city without a country', async () => {
+            expect(await run({ region: 'M', city: 'madrid' })).toHaveLength(5)
+        })
+    })
 })

@@ -39,5 +39,15 @@ export const DiscordUser = defineMongooseModel({
       default: null,
       index: true,
     },
+    // ClickFunnels address, synced nightly by stcbot (cf-location.js). *Key
+    // fields are normalized for grouping; the others are display names.
+    cfLocation: {
+      country: { type: String, default: null },
+      region: { type: String, default: null },
+      regionKey: { type: String, default: null },
+      city: { type: String, default: null },
+      cityKey: { type: String, default: null },
+      syncedAt: { type: Date, default: null },
+    },
   },
 })

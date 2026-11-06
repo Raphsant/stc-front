@@ -2,7 +2,8 @@
 // Discord user's profile. Mirrors the calls stcbot makes (same base URL,
 // token and workspace).
 
-const CF_BASE = 'https://eduardobricenosteam309bd.myclickfunnels.com/api/v2'
+const CF_HOST = 'https://eduardobricenosteam309bd.myclickfunnels.com'
+const CF_BASE = `${CF_HOST}/api/v2`
 
 export interface CfAddress {
     streetOne: string | null
@@ -15,6 +16,7 @@ export interface CfAddress {
 
 export interface CfContactDetails {
     contactId: number
+    profileUrl: string | null
     fullName: string | null
     email: string | null
     phone: string | null
@@ -70,6 +72,7 @@ export function normalizeContact(contact: any, orders: any[]): CfContactDetails 
     const fullName = [clean(contact.first_name), clean(contact.last_name)].filter(Boolean).join(' ')
     return {
         contactId: contact.id,
+        profileUrl: contact.public_id ? `${CF_HOST}/account/contacts/${contact.public_id}` : null,
         fullName: fullName || null,
         email: clean(contact.email_address),
         phone: clean(contact.phone_number),
@@ -78,11 +81,11 @@ export function normalizeContact(contact: any, orders: any[]): CfContactDetails 
 }
 
 export async function getCfContactDetails(contactId: number): Promise<CfContactDetails> {
-    const { workspaceId } = readConfig()
-    const [contact, orders] = await Promise.all([
-        cfGet(`/contacts/${contactId}`),
-        // Address is optional — a failed orders call shouldn't hide the rest.
-        cfGet(`/workspaces/${workspaceId}/orders?filter[contact_id]=${contactId}`).catch(() => []),
-    ])
+    const contact = await cfGet(`/contacts/${contactId}`)
+    // The contact carries its own workspace, so the env var is only a fallback.
+    const workspaceId = contact.workspace_id ?? readConfig().workspaceId
+    // Address is optional — a failed orders call shouldn't hide the rest.
+    const orders = await cfGet(`/workspaces/${workspaceId}/orders?filter[contact_id]=${contactId}`)
+        .catch((e) => { console.error(e); return [] })
     return normalizeContact(contact, orders)
 }

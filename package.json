@@ -1,6 +1,6 @@
 {
   "name": "stc-front",
-  "version": "0.2.1-beta",
+  "version": "0.3.0-beta",
   "type": "module",
   "private": true,
   "scripts": {
@@ -21,13 +21,16 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.9.0",
     "chart.js": "^4.5.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "lucide-vue-next": "^1.0.0",
     "nuxt": "^4.4.2",
     "nuxt-auth-utils": "^0.5.29",
     "nuxt-mongoose": "1.1.2",
     "vue": "^3.5.32",
     "vue-chartjs": "^5.3.3",
-    "vue-router": "^5.0.4"
+    "vue-router": "^5.0.4",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",

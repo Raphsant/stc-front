@@ -15,6 +15,7 @@ const isSuperAdmin = computed(() => (session.value?.user as any)?.role === 'supe
 const navItems = computed(() => [
   { label: 'Dashboard',  icon: 'i-lucide-layout-dashboard', to: '/' },
   { label: 'Usuarios',   icon: 'i-lucide-users',            to: '/discord-users' },
+  { label: 'Reportes',   icon: 'i-lucide-file-bar-chart',   to: '/reports' },
   { label: 'Meetings',   icon: 'i-lucide-list',             to: '/meetings' },
   { label: 'Seguimientos', icon: 'i-lucide-clipboard-check', to: '/journal/follow-ups' },
   { label: 'Logs',       icon: 'i-lucide-file-text',        to: '/logs' },

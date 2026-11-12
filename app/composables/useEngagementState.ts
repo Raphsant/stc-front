@@ -1,31 +1,7 @@
-export type EngagementState = 'active' | 'slipping' | 'inactive' | 'dormant'
+import { getEngagementState } from '#shared/engagement'
 
-export interface EngagementStateInfo {
-    state: EngagementState
-    label: string
-    color: 'success' | 'warning' | 'error' | 'neutral'
-    daysSince: number | null
-}
-
-export function getEngagementState(
-    lastMessageAt?: Date | string | null,
-    lastMeetingAt?: Date | string | null,
-): EngagementStateInfo {
-    const msgTime = lastMessageAt ? new Date(lastMessageAt).getTime() : 0
-    const mtgTime = lastMeetingAt ? new Date(lastMeetingAt).getTime() : 0
-    const lastActive = Math.max(msgTime, mtgTime)
-
-    if (!lastActive) {
-        return { state: 'dormant', label: 'Inactivo', color: 'neutral', daysSince: null }
-    }
-
-    const daysSince = Math.floor((Date.now() - lastActive) / (1000 * 60 * 60 * 24))
-
-    if (daysSince <= 7) return { state: 'active', label: 'Activo', color: 'success', daysSince }
-    if (daysSince <= 30) return { state: 'slipping', label: 'Ausente', color: 'warning', daysSince }
-    if (daysSince <= 90) return { state: 'inactive', label: 'Inactivo', color: 'error', daysSince }
-    return { state: 'dormant', label: 'Dormido', color: 'neutral', daysSince }
-}
+export { getEngagementState }
+export type { EngagementState, EngagementStateInfo } from '#shared/engagement'
 
 export function formatRelativeTime(date?: Date | string | null): string {
     if (!date) return 'never'

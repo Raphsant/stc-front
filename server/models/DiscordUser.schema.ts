@@ -49,5 +49,19 @@ export const DiscordUser = defineMongooseModel({
       cityKey: { type: String, default: null },
       syncedAt: { type: Date, default: null },
     },
+    // ClickFunnels subscription, synced nightly by stcbot (cf-membership.js).
+    // expiresAt is the resolved paid-through / next-charge date; expirySource
+    // records which ClickFunnels field it came from. Mirrored in stcbot.
+    cfMembership: {
+      status: { type: String, default: null },
+      orderId: { type: Number, default: null },
+      productName: { type: String, default: null },
+      interval: { type: String, default: null },
+      expiresAt: { type: Date, default: null },
+      expirySource: { type: String, default: null },
+      nextChargeAt: { type: Date, default: null },
+      canceledAt: { type: Date, default: null },
+      syncedAt: { type: Date, default: null },
+    },
   },
 })

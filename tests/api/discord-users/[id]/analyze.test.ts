@@ -5,7 +5,7 @@ let analyzeHandler: (event: any) => Promise<any>
 let Bitacora: any
 
 const getUserSession = vi.fn()
-const getObjectBuffer = vi.fn()
+const createDownloadUrl = vi.fn()
 const analyzeConversation = vi.fn()
 
 const ADMIN = { user: { id: 'a-1', username: 'bernardo' } }
@@ -66,7 +66,7 @@ beforeAll(async () => {
     ;({ Bitacora } = await import('#server/models/Bitacora.schema'))
     vi.stubGlobal('Bitacora', Bitacora)
     vi.stubGlobal('getUserSession', getUserSession)
-    vi.stubGlobal('getObjectBuffer', getObjectBuffer)
+    vi.stubGlobal('createDownloadUrl', createDownloadUrl)
     vi.stubGlobal('analyzeConversation', analyzeConversation)
 
     const mod = await import('#server/api/discord-users/[id]/journal/[entryId]/analyze.post')
@@ -83,11 +83,11 @@ beforeEach(async () => {
     )
     vi.mocked(globalThis.getRouterParam).mockReset()
     getUserSession.mockReset()
-    getObjectBuffer.mockReset()
+    createDownloadUrl.mockReset()
     analyzeConversation.mockReset()
 
     getUserSession.mockResolvedValue(ADMIN)
-    getObjectBuffer.mockResolvedValue({ buffer: Buffer.from('img'), contentType: 'image/png' })
+    createDownloadUrl.mockImplementation(async (key: string) => `https://signed.example/${key}`)
 })
 
 describe('POST /api/discord-users/:id/journal/:entryId/analyze', () => {
@@ -117,9 +117,35 @@ describe('POST /api/discord-users/:id/journal/:entryId/analyze', () => {
 
         await analyzeHandler({})
 
-        const [, , ctx] = analyzeConversation.mock.calls[0]
+        const [, ctx] = analyzeConversation.mock.calls[0]
         expect(ctx.agentName).toBe('rumi')
         expect(ctx.currentDate).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+
+    it('sends every screenshot of the entry in one analysis call, in order', async () => {
+        const images = ['bitacora/u-1/a.png', 'bitacora/u-1/b.png', 'bitacora/u-1/c.jpg']
+        const entry = await seedImageEntry({ content: images[0], images })
+        analyzeConversation.mockResolvedValue(deltaResult())
+        routeTo(String(entry._id))
+
+        await analyzeHandler({})
+
+        expect(analyzeConversation).toHaveBeenCalledTimes(1)
+        expect(analyzeConversation.mock.calls[0][0]).toEqual(
+            images.map(key => `https://signed.example/${key}`),
+        )
+    })
+
+    it('analyzes a legacy single-image entry through its content key', async () => {
+        const entry = await seedImageEntry()
+        analyzeConversation.mockResolvedValue(deltaResult())
+        routeTo(String(entry._id))
+
+        await analyzeHandler({})
+
+        expect(analyzeConversation.mock.calls[0][0]).toEqual([
+            'https://signed.example/bitacora/u-1/shot.png',
+        ])
     })
 
     it('keeps a no_action_needed result out of the queue', async () => {

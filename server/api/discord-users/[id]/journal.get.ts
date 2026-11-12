@@ -1,4 +1,5 @@
 import { createDownloadUrl } from '../../../utils/s3'
+import { journalImageKeys } from '#shared/journal'
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
@@ -11,12 +12,12 @@ export default defineEventHandler(async (event) => {
         .lean()
 
     return Promise.all(entries.map(async (e: any) => {
-        if (e.type === 'image' && e.content) {
-            try {
-                e.imageUrl = await createDownloadUrl(e.content)
-            } catch {
-                e.imageUrl = null
-            }
+        if (e.type === 'image') {
+            // One URL per screenshot, in conversation order; null where signing fails.
+            e.imageUrls = await Promise.all(
+                journalImageKeys(e).map(key => createDownloadUrl(key).catch(() => null)),
+            )
+            e.imageUrl = e.imageUrls[0] ?? null
         }
         return e
     }))

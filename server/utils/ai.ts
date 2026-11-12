@@ -14,8 +14,8 @@ import { normalizeDeltaResult } from './deltaNormalize'
 
 // STC Delta Conversation Analysis.
 //
-// Reads a screenshot of one Discord/WhatsApp thread between an STC agent and a
-// Delta-tier member, scores it against the DELTA_GUIDELINE playbook, and
+// Reads the screenshot(s) of one Discord/WhatsApp thread between an STC agent
+// and a Delta-tier member, scores it against the DELTA_GUIDELINE playbook, and
 // returns the structured record that populates one row of the follow-up
 // bitácora. See shared/deltaAnalysis.ts for the vocabulary.
 
@@ -24,13 +24,6 @@ import { normalizeDeltaResult } from './deltaNormalize'
 // newer models (Opus 4.7+, Sonnet 5, Fable 5). If you bump MODEL, drop the
 // temperature parameter below.
 const MODEL = 'claude-sonnet-4-6'
-
-const SUPPORTED_IMAGE_MIME = new Set([
-    'image/png',
-    'image/jpeg',
-    'image/webp',
-    'image/gif',
-])
 
 let client: Anthropic | null = null
 
@@ -177,12 +170,30 @@ export interface DeltaAnalysisContext {
     agentName: string
 }
 
+/**
+ * @param imageUrls Fetchable URLs (presigned S3) of the thread's screenshots, in
+ *   chronological order. They are sent in a single request so the model reads
+ *   them as one conversation and returns one analysis.
+ */
 export async function analyzeConversation(
-    buffer: Buffer,
-    mime: string,
+    imageUrls: string[],
     ctx: DeltaAnalysisContext,
 ): Promise<DeltaAnalysisResult> {
-    const mediaType = SUPPORTED_IMAGE_MIME.has(mime) ? mime : 'image/png'
+    if (!imageUrls.length) {
+        throw createError({ statusCode: 400, statusMessage: 'No images to analyze' })
+    }
+    const many = imageUrls.length > 1
+
+    // Label each screenshot when there are several, so the model can keep
+    // their order straight.
+    const imageBlocks: Anthropic.ContentBlockParam[] = imageUrls.flatMap((url, i) => [
+        ...(many ? [{ type: 'text' as const, text: `Screenshot ${i + 1} of ${imageUrls.length}:` }] : []),
+        { type: 'image' as const, source: { type: 'url' as const, url } },
+    ])
+
+    const instruction = many
+        ? `The ${imageUrls.length} screenshots above are consecutive parts of ONE conversation, uploaded in chronological order (Screenshot 1 is the earliest). Overlapping messages between screenshots are the same messages, not repeats. Analyze them together as a single thread and return ONE JSON object.`
+        : 'Analyze this conversation and return the JSON object.'
 
     const response = await getClient().messages.create({
         model: MODEL,
@@ -210,17 +221,10 @@ export async function analyzeConversation(
             {
                 role: 'user',
                 content: [
-                    {
-                        type: 'image',
-                        source: {
-                            type: 'base64',
-                            media_type: mediaType as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif',
-                            data: buffer.toString('base64'),
-                        },
-                    },
+                    ...imageBlocks,
                     {
                         type: 'text',
-                        text: `CURRENT_DATE: ${ctx.currentDate}\nAGENT_NAME: ${ctx.agentName}\n\nAnalyze this conversation and return the JSON object.`,
+                        text: `CURRENT_DATE: ${ctx.currentDate}\nAGENT_NAME: ${ctx.agentName}\n\n${instruction}`,
                     },
                 ],
             },

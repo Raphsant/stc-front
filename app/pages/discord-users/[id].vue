@@ -38,6 +38,7 @@ import {
   type DeltaAnalysisResult,
   type Priority,
 } from '#shared/deltaAnalysis'
+import { MAX_JOURNAL_IMAGES } from '#shared/journal'
 
 interface JournalEntry {
   _id: string
@@ -45,6 +46,8 @@ interface JournalEntry {
   type: 'text' | 'image'
   content: string
   imageUrl?: string | null
+  /** One signed URL per screenshot, in conversation order (null = unavailable). */
+  imageUrls?: (string | null)[]
   adminId: string
   adminUsername: string
   createdAt: string
@@ -61,6 +64,12 @@ interface JournalEntry {
   recontactDate?: string | null
   followUpDoneAt?: string | null
   followUpDoneBy?: string | null
+}
+
+/** Signed URLs of an image entry's screenshots, in conversation order. */
+function entryImageUrls(entry: JournalEntry): (string | null)[] {
+  if (entry.imageUrls?.length) return entry.imageUrls
+  return entry.imageUrl ? [entry.imageUrl] : []
 }
 
 /** Entries analyzed before the Delta rewrite carry the old pain-point shape. */
@@ -94,8 +103,13 @@ const ENGAGEMENT_TONE: Record<string, string> = {
 const journalType = ref<'text' | 'image'>('text')
 const journalText = ref('')
 const journalSubmitting = ref(false)
-const journalFile = ref<File | null>(null)
+// Screenshots picked for one image entry, in conversation order. They are
+// uploaded together and analyzed as a single thread.
+interface PickedImage { id: number, file: File, previewUrl: string }
+const journalFiles = ref<PickedImage[]>([])
 const journalFileInput = ref<HTMLInputElement | null>(null)
+const journalDragging = ref(false)
+let pickedImageSeq = 0
 
 const ALLOWED_IMAGE_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
@@ -105,29 +119,73 @@ const journalTypeItems = [
   { value: 'image', label: 'Imagen', icon: 'i-lucide-image' },
 ]
 
-function onFilePick(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  if (!file) {
-    journalFile.value = null
-    return
+function addJournalFiles(files: File[]) {
+  let badType = 0
+  let tooBig = 0
+  let overLimit = 0
+  for (const file of files) {
+    if (!ALLOWED_IMAGE_MIME.includes(file.type)) { badType++; continue }
+    if (file.size > MAX_IMAGE_BYTES) { tooBig++; continue }
+    if (journalFiles.value.length >= MAX_JOURNAL_IMAGES) { overLimit++; continue }
+    journalFiles.value.push({ id: ++pickedImageSeq, file, previewUrl: URL.createObjectURL(file) })
   }
-  if (!ALLOWED_IMAGE_MIME.includes(file.type)) {
-    toast.add({ title: 'Formato no soportado. Usa PNG, JPG, WebP o GIF.', color: 'warning' })
-    input.value = ''
-    return
-  }
-  if (file.size > MAX_IMAGE_BYTES) {
-    toast.add({ title: 'La imagen supera el tamaño máximo de 5MB.', color: 'warning' })
-    input.value = ''
-    return
-  }
-  journalFile.value = file
+  if (badType) toast.add({ title: 'Formato no soportado. Usa PNG, JPG, WebP o GIF.', color: 'warning' })
+  if (tooBig) toast.add({ title: 'Cada imagen puede pesar como máximo 5MB.', color: 'warning' })
+  if (overLimit) toast.add({ title: `Máximo ${MAX_JOURNAL_IMAGES} imágenes por entrada.`, color: 'warning' })
 }
 
-function clearJournalFile() {
-  journalFile.value = null
-  if (journalFileInput.value) journalFileInput.value.value = ''
+function onFilePick(e: Event) {
+  const input = e.target as HTMLInputElement
+  addJournalFiles([...(input.files ?? [])])
+  // Reset so picking the same file again still fires `change`.
+  input.value = ''
+}
+
+function onFileDrop(e: DragEvent) {
+  journalDragging.value = false
+  if (journalSubmitting.value) return
+  addJournalFiles([...(e.dataTransfer?.files ?? [])])
+}
+
+function removeJournalFile(id: number) {
+  const i = journalFiles.value.findIndex(f => f.id === id)
+  if (i === -1) return
+  URL.revokeObjectURL(journalFiles.value[i]!.previewUrl)
+  journalFiles.value.splice(i, 1)
+}
+
+/** Swap a screenshot with its neighbour — order is the conversation order. */
+function moveJournalFile(index: number, delta: -1 | 1) {
+  const list = journalFiles.value
+  const j = index + delta
+  if (j < 0 || j >= list.length) return
+  ;[list[index], list[j]] = [list[j]!, list[index]!]
+}
+
+function clearJournalFiles() {
+  for (const f of journalFiles.value) URL.revokeObjectURL(f.previewUrl)
+  journalFiles.value = []
+}
+
+onBeforeUnmount(clearJournalFiles)
+
+async function uploadJournalImage(file: File): Promise<string> {
+  const { uploadUrl, key } = await $fetch<{ uploadUrl: string, key: string }>(
+    `/api/discord-users/${userId}/journal-upload-url`,
+    {
+      method: 'POST',
+      body: { contentType: file.type, size: file.size },
+    },
+  )
+  const putRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  })
+  if (!putRes.ok) {
+    throw new Error(`Upload failed (${putRes.status})`)
+  }
+  return key
 }
 
 async function submitJournalEntry() {
@@ -146,31 +204,19 @@ async function submitJournalEntry() {
       })
       journalText.value = ''
     } else {
-      const file = journalFile.value
-      if (!file) {
-        toast.add({ title: 'Selecciona una imagen primero.', color: 'warning' })
+      const files = journalFiles.value.map(f => f.file)
+      if (!files.length) {
+        toast.add({ title: 'Selecciona al menos una imagen.', color: 'warning' })
         return
       }
-      const { uploadUrl, key } = await $fetch<{ uploadUrl: string, key: string }>(
-        `/api/discord-users/${userId}/journal-upload-url`,
-        {
-          method: 'POST',
-          body: { contentType: file.type, size: file.size },
-        },
-      )
-      const putRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      })
-      if (!putRes.ok) {
-        throw new Error(`Upload failed (${putRes.status})`)
-      }
+      // Upload everything first; the entry is only created once every
+      // screenshot is in S3, so a failed upload never leaves a partial entry.
+      const images = await Promise.all(files.map(uploadJournalImage))
       await $fetch(`/api/discord-users/${userId}/journal`, {
         method: 'POST',
-        body: { type: 'image', content: key },
+        body: { type: 'image', images },
       })
-      clearJournalFile()
+      clearJournalFiles()
     }
     await refreshJournal()
     toast.add({ title: 'Entrada añadida a la bitácora.', color: 'success' })
@@ -731,25 +777,82 @@ function initial(name?: string) {
                 ref="journalFileInput"
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
+                multiple
                 class="hidden"
                 @change="onFilePick"
               >
-              <div v-if="!journalFile" class="up-drop" @click="journalFileInput?.click()">
+              <div
+                v-if="!journalFiles.length"
+                class="up-drop"
+                :class="{ over: journalDragging }"
+                @click="journalFileInput?.click()"
+                @dragover.prevent="journalDragging = true"
+                @dragleave.prevent="journalDragging = false"
+                @drop.prevent="onFileDrop"
+              >
                 <UIcon name="i-lucide-cloud-upload" class="w-7 h-7" />
-                <p class="up-drop-t">Haz clic para seleccionar una imagen</p>
-                <p class="up-drop-p">PNG, JPG, WebP o GIF · máx. 5MB</p>
+                <p class="up-drop-t">Haz clic o arrastra las capturas de la conversación</p>
+                <p class="up-drop-p">
+                  PNG, JPG, WebP o GIF · máx. 5MB c/u · hasta {{ MAX_JOURNAL_IMAGES }} imágenes
+                </p>
               </div>
-              <div v-else class="up-file">
-                <span class="up-file-glyph">
-                  <UIcon name="i-lucide-image" class="w-4 h-4" />
-                </span>
-                <div class="min-w-0 flex-1">
-                  <div class="up-file-n">{{ journalFile.name }}</div>
-                  <div class="up-file-s stc-mono">{{ (journalFile.size / 1024).toFixed(1) }} KB</div>
+              <div
+                v-else
+                class="up-picks"
+                :class="{ over: journalDragging }"
+                @dragover.prevent="journalDragging = true"
+                @dragleave.prevent="journalDragging = false"
+                @drop.prevent="onFileDrop"
+              >
+                <div class="up-picks-grid">
+                  <div v-for="(img, i) in journalFiles" :key="img.id" class="up-pick">
+                    <img :src="img.previewUrl" :alt="img.file.name">
+                    <span class="up-pick-n stc-mono">{{ i + 1 }}</span>
+                    <button
+                      class="up-pick-x"
+                      type="button"
+                      :disabled="journalSubmitting"
+                      :aria-label="`Quitar imagen ${i + 1}`"
+                      @click="removeJournalFile(img.id)"
+                    >
+                      <UIcon name="i-lucide-x" class="w-3.5 h-3.5" />
+                    </button>
+                    <div v-if="journalFiles.length > 1" class="up-pick-move">
+                      <button
+                        type="button"
+                        :disabled="journalSubmitting || i === 0"
+                        :aria-label="`Mover imagen ${i + 1} antes`"
+                        @click="moveJournalFile(i, -1)"
+                      >
+                        <UIcon name="i-lucide-chevron-left" class="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="journalSubmitting || i === journalFiles.length - 1"
+                        :aria-label="`Mover imagen ${i + 1} después`"
+                        @click="moveJournalFile(i, 1)"
+                      >
+                        <UIcon name="i-lucide-chevron-right" class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    v-if="journalFiles.length < MAX_JOURNAL_IMAGES"
+                    class="up-pick-add"
+                    type="button"
+                    :disabled="journalSubmitting"
+                    @click="journalFileInput?.click()"
+                  >
+                    <UIcon name="i-lucide-plus" class="w-5 h-5" />
+                    <span>Añadir</span>
+                  </button>
                 </div>
-                <button class="stc-icon-btn" :disabled="journalSubmitting" @click="clearJournalFile">
-                  <UIcon name="i-lucide-x" class="w-4 h-4" />
-                </button>
+                <p class="up-picks-note">
+                  {{ journalFiles.length }} de {{ MAX_JOURNAL_IMAGES }}
+                  <template v-if="journalFiles.length > 1">
+                    · se analizarán juntas como una sola conversación, en este orden
+                  </template>
+                </p>
               </div>
               <div class="up-form-foot">
                 <p class="up-form-note">
@@ -757,11 +860,11 @@ function initial(name?: string) {
                 </p>
                 <button
                   class="stc-btn gold sm"
-                  :disabled="journalSubmitting || !journalFile"
+                  :disabled="journalSubmitting || !journalFiles.length"
                   @click="submitJournalEntry"
                 >
                   <UIcon name="i-lucide-upload" class="w-3.5 h-3.5" />
-                  {{ journalSubmitting ? 'Subiendo…' : 'Subir imagen' }}
+                  {{ journalSubmitting ? 'Subiendo…' : (journalFiles.length > 1 ? `Subir ${journalFiles.length} imágenes` : 'Subir imagen') }}
                 </button>
               </div>
             </template>
@@ -816,9 +919,19 @@ function initial(name?: string) {
                 </div>
 
                 <p v-if="entry.type === 'text'" class="up-entry-text">{{ entry.content }}</p>
-                <a v-else-if="entry.imageUrl" :href="entry.imageUrl" target="_blank" rel="noopener" class="up-entry-img">
-                  <img :src="entry.imageUrl" :alt="entry.content" loading="lazy">
-                </a>
+                <div
+                  v-else-if="entryImageUrls(entry).length"
+                  class="up-entry-imgs"
+                  :class="{ multi: entryImageUrls(entry).length > 1 }"
+                >
+                  <template v-for="(url, i) in entryImageUrls(entry)" :key="i">
+                    <a v-if="url" :href="url" target="_blank" rel="noopener" class="up-entry-img">
+                      <img :src="url" :alt="`Captura ${i + 1} de ${entryImageUrls(entry).length}`" loading="lazy">
+                      <span v-if="entryImageUrls(entry).length > 1" class="up-pick-n stc-mono">{{ i + 1 }}</span>
+                    </a>
+                    <div v-else class="up-entry-na">Imagen {{ i + 1 }} no disponible</div>
+                  </template>
+                </div>
                 <div v-else class="up-entry-na">Imagen no disponible</div>
 
                 <!-- Marca de eliminación -->
@@ -1249,27 +1362,83 @@ html:not(.dark) .hm-0 { background: #e6e2d8; }
 .up-drop-t { font-size: 13px; color: var(--dim); margin-top: 8px; }
 .up-drop-p { font-size: 11px; color: var(--faint); margin-top: 3px; }
 
-.up-file {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 13px;
-  border-radius: var(--r-sm);
+.up-drop.over,
+.up-picks.over { border-color: var(--gold-ring); background: var(--gold-wash); }
+
+.up-picks {
+  padding: 12px;
+  border-radius: var(--r);
+  border: 1px dashed var(--line-2);
   background: var(--inset);
-  border: 1px solid var(--line);
+  transition: .15s;
 }
-.up-file-glyph {
-  width: 32px; height: 32px;
-  border-radius: 8px;
-  flex-shrink: 0;
+.up-picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+.up-pick {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background: var(--bg, #000);
+}
+.up-pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.up-pick-n {
+  position: absolute;
+  top: 5px; left: 5px;
+  min-width: 19px; height: 19px;
+  padding: 0 5px;
   display: grid;
   place-items: center;
-  color: var(--gold);
-  background: var(--gold-wash);
-  border: 1px solid var(--gold-ring);
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #111;
+  background: var(--gold);
 }
-.up-file-n { font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.up-file-s { font-size: 11px; color: var(--faint); margin-top: 2px; }
+.up-pick-x,
+.up-pick-move button {
+  display: grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 0;
+  color: #fff;
+  background: rgba(0, 0, 0, .68);
+  cursor: pointer;
+  transition: .14s;
+}
+.up-pick-x { position: absolute; top: 5px; right: 5px; }
+.up-pick-move {
+  position: absolute;
+  left: 5px; right: 5px; bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+}
+.up-pick-x:hover:not(:disabled),
+.up-pick-move button:hover:not(:disabled) { background: var(--gold); color: #111; }
+.up-pick-x:disabled,
+.up-pick-move button:disabled { opacity: .35; cursor: not-allowed; }
+.up-pick-add {
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--line-2);
+  background: transparent;
+  color: var(--faint);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: .15s;
+}
+.up-pick-add:hover:not(:disabled) { border-color: var(--gold-ring); background: var(--gold-wash); color: var(--gold-soft); }
+.up-pick-add:disabled { opacity: .35; cursor: not-allowed; }
+.up-picks-note { font-size: 11.5px; color: var(--faint); margin-top: 10px; }
 
 .up-locked {
   padding: 16px 18px;
@@ -1365,7 +1534,9 @@ html:not(.dark) .hm-0 { background: #e6e2d8; }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.up-entry-img { display: block; }
+.up-entry-imgs { display: flex; flex-wrap: wrap; gap: 8px; }
+.up-entry-imgs.multi .up-entry-img img { height: 180px; max-height: 180px; }
+.up-entry-img { display: block; position: relative; }
 .up-entry-img img {
   max-height: 320px;
   width: auto;

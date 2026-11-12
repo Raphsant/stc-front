@@ -1,6 +1,10 @@
+import { journalImageKeys } from '#shared/journal'
+
 // Manually-triggered Delta Conversation Analysis of a journal image entry
-// (Discord/WhatsApp chat screenshot). Scores the thread against the STC Delta →
-// Alpha playbook and stores the follow-up record on the entry.
+// (one or more Discord/WhatsApp chat screenshots of the same thread). All the
+// entry's screenshots go to the model in ONE request, so the thread is scored
+// as a whole against the STC Delta → Alpha playbook and yields a single
+// follow-up record on the entry.
 // See server/utils/ai.ts and shared/deltaAnalysis.ts.
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id')
@@ -27,8 +31,12 @@ export default defineEventHandler(async (event) => {
     await entry.save()
 
     try {
-        const { buffer, contentType } = await getObjectBuffer((entry as any).content)
-        const result = await analyzeConversation(buffer, contentType, {
+        // Short-lived presigned URLs rather than base64: several screenshots
+        // inline would blow past the API's request-size limit.
+        const imageUrls = await Promise.all(
+            journalImageKeys(entry as any).map(key => createDownloadUrl(key)),
+        )
+        const result = await analyzeConversation(imageUrls, {
             currentDate: new Date().toISOString().slice(0, 10),
             agentName: (entry as any).adminUsername || 'unknown',
         })

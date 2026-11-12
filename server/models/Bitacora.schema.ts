@@ -18,6 +18,14 @@ export const Bitacora = defineMongooseModel({
       required: true,
       trim: true,
     },
+    // Image entries only: S3 keys of every screenshot, in conversation order.
+    // `content` mirrors images[0] so older readers keep working; entries created
+    // before multi-image support have an empty array — read them through
+    // journalImageKeys() in shared/journal.ts.
+    images: {
+      type: [String],
+      default: [],
+    },
     adminId: {
       type: String,
       required: true,

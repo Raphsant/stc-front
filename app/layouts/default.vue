@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const isMobileMenuOpen = ref(false)
+const isMoreOpen = ref(false)
 const route = useRoute()
 const { session } = useUserSession()
 const colorMode = useColorMode()
@@ -40,6 +40,28 @@ const userInitial = computed(() => {
 })
 
 const isDark = computed(() => colorMode.value === 'dark')
+
+// ── Mobile bottom nav ──
+// Los 4 destinos de uso diario van en la píldora; el resto vive en la hoja "Más".
+const PRIMARY_PATHS = ['/', '/discord-users', '/reports', '/journal/follow-ups']
+const MOBILE_LABELS: Record<string, string> = { '/': 'Inicio' }
+
+const primaryTabs = computed(() =>
+  PRIMARY_PATHS
+    .map(p => navItems.value.find(i => i.to === p))
+    .filter((i): i is NonNullable<typeof i> => !!i)
+    .map(i => ({ ...i, label: MOBILE_LABELS[i.to] ?? i.label })),
+)
+const moreItems = computed(() => navItems.value.filter(i => !PRIMARY_PATHS.includes(i.to)))
+const isMoreActive = computed(() => isMoreOpen.value || moreItems.value.some(i => isActive(i.to)))
+
+watch(() => route.fullPath, () => { isMoreOpen.value = false })
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') isMoreOpen.value = false
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
@@ -99,16 +121,16 @@ const isDark = computed(() => colorMode.value === 'dark')
 
       <!-- Topbar -->
       <header class="stc-topbar flex items-center justify-between px-4 py-3.5 md:px-8 md:py-[18px]">
-        <!-- Left: mobile menu + title -->
-        <div class="flex items-center gap-4">
-          <button
-            class="md:hidden stc-top-icon"
-            style="width:36px; height:36px"
-            @click="isMobileMenuOpen = true"
+        <!-- Left: brand mark (mobile) + title -->
+        <div class="flex items-center gap-3 md:gap-4 min-w-0">
+          <img
+            src="/brand/stc-mark.png"
+            alt="Stocks Trading Club"
+            width="28"
+            height="28"
+            class="md:hidden flex-shrink-0"
           >
-            <UIcon name="i-lucide-menu" class="w-[17px] h-[17px]" />
-          </button>
-          <div>
+          <div class="min-w-0">
             <h1 class="stc-topbar-title">{{ currentRouteName }}</h1>
             <div class="hidden md:block stc-eyebrow" style="margin-top:3px">
               Stocks Trading Club · Panel de control
@@ -121,7 +143,7 @@ const isDark = computed(() => colorMode.value === 'dark')
           <NuxtLink to="/changelog" class="stc-ver">v{{ appVersion }}</NuxtLink>
 
           <button
-            class="stc-top-icon"
+            class="stc-top-icon hidden! md:grid!"
             :title="isDark ? 'Modo claro' : 'Modo oscuro'"
             @click="colorMode.preference = isDark ? 'light' : 'dark'"
           >
@@ -140,73 +162,95 @@ const isDark = computed(() => colorMode.value === 'dark')
 
       <!-- Page content -->
       <div class="stc-scroll flex-1 overflow-y-auto">
-        <div class="flex flex-col px-4 pt-6 pb-11 md:px-8" style="gap:18px; max-width:1620px">
+        <div class="stc-page flex flex-col px-4 pt-5 md:pt-6 md:px-8" style="gap:18px; max-width:1620px">
           <slot />
         </div>
       </div>
     </main>
   </div>
 
-  <!-- Mobile slide-over -->
+  <!-- ── Mobile: floating pill nav + "Más" sheet ── -->
+  <!-- Solo cliente: un Teleport renderizado en SSR rompe la hidratación. -->
+  <ClientOnly>
   <Teleport to="body">
-    <Transition name="stc-slide">
-      <div v-if="isMobileMenuOpen" class="fixed inset-0 z-50 flex">
-        <div class="absolute inset-0 bg-black/60" @click="isMobileMenuOpen = false" />
-        <aside
-          class="stc-sidebar relative w-72 flex flex-col h-full z-10"
-          style="padding: 20px 14px"
-        >
-          <div class="flex items-center justify-between mb-6">
-            <div class="stc-brand">
-              <div class="stc-brand-mark">
-                <img src="/brand/stc-mark.png" alt="Stocks Trading Club" width="34" height="34">
-              </div>
-              <span class="stc-brand-name">STC <em>Control</em></span>
+    <nav class="stc-pill md:hidden" aria-label="Navegación principal">
+      <NuxtLink
+        v-for="item in primaryTabs"
+        :key="item.to"
+        :to="item.to"
+        class="stc-pill-item"
+        :class="{ active: isActive(item.to) && !isMoreOpen }"
+        :aria-label="item.label"
+        :aria-current="isActive(item.to) ? 'page' : undefined"
+      >
+        <UIcon :name="item.icon" class="stc-pill-icon" />
+        <span class="stc-pill-label">{{ item.label }}</span>
+      </NuxtLink>
+      <button
+        type="button"
+        class="stc-pill-item"
+        :class="{ active: isMoreActive }"
+        aria-label="Más"
+        :aria-expanded="isMoreOpen"
+        @click="isMoreOpen = !isMoreOpen"
+      >
+        <UIcon :name="isMoreOpen ? 'i-lucide-x' : 'i-lucide-ellipsis'" class="stc-pill-icon" />
+        <span class="stc-pill-label">Más</span>
+      </button>
+    </nav>
+
+    <Transition name="stc-fade">
+      <div v-if="isMoreOpen" class="stc-sheet-backdrop md:hidden" @click="isMoreOpen = false" />
+    </Transition>
+    <Transition name="stc-sheet">
+      <div v-if="isMoreOpen" class="stc-sheet md:hidden" role="dialog" aria-label="Más opciones">
+        <div class="stc-sheet-grip" />
+
+        <div class="stc-eyebrow" style="padding:0 4px; margin-bottom:10px">Más</div>
+        <div class="stc-sheet-grid">
+          <NuxtLink
+            v-for="item in moreItems"
+            :key="item.to"
+            :to="item.to"
+            class="stc-sheet-tile"
+            :class="{ active: isActive(item.to) }"
+          >
+            <UIcon :name="item.icon" class="w-5 h-5" />
+            <span>{{ item.label }}</span>
+          </NuxtLink>
+          <button
+            type="button"
+            class="stc-sheet-tile"
+            @click="colorMode.preference = isDark ? 'light' : 'dark'"
+          >
+            <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="w-5 h-5" />
+            <span>{{ isDark ? 'Modo claro' : 'Modo oscuro' }}</span>
+          </button>
+        </div>
+
+        <div class="stc-user-card" style="margin-top:14px">
+          <div class="stc-user-av">{{ userInitial }}</div>
+          <div class="flex-1 min-w-0" style="line-height:1.25">
+            <div class="font-semibold text-[13px] truncate" style="color:var(--text)">
+              {{ (session?.user as any)?.username }}
             </div>
-            <button class="stc-top-icon" style="width:32px; height:32px" @click="isMobileMenuOpen = false">
-              <UIcon name="i-lucide-x" class="w-4 h-4" />
-            </button>
-          </div>
-
-          <div class="stc-eyebrow" style="padding:0 12px; margin:2px 0 9px">Menú</div>
-
-          <nav class="flex flex-col" style="gap:2px">
-            <NuxtLink
-              v-for="item in navItems"
-              :key="item.label"
-              :to="item.to"
-              class="stc-nav-item"
-              :class="{ active: isActive(item.to) }"
-              @click="isMobileMenuOpen = false"
-            >
-              <UIcon :name="item.icon" class="w-[17px] h-[17px] flex-shrink-0" />
-              {{ item.label }}
-            </NuxtLink>
-          </nav>
-
-          <div class="mt-auto" style="padding-top:14px">
-            <div class="stc-user-card">
-              <div class="stc-user-av">{{ userInitial }}</div>
-              <div class="flex-1 min-w-0" style="line-height:1.25">
-                <div class="font-semibold text-[13px] truncate" style="color:var(--text)">
-                  {{ (session?.user as any)?.username }}
-                </div>
-                <div class="text-[11px]" style="color:var(--faint)">
-                  {{ isSuperAdmin ? 'Superadmin' : 'Admin' }}
-                </div>
-              </div>
-              <button class="stc-ibtn" @click="logout">
-                <UIcon name="i-lucide-log-out" class="w-4 h-4" />
-              </button>
+            <div class="text-[11px]" style="color:var(--faint)">
+              {{ isSuperAdmin ? 'Superadmin' : 'Admin' }} · v{{ appVersion }}
             </div>
           </div>
-        </aside>
+          <button class="stc-ibtn" title="Cerrar sesión" @click="logout">
+            <UIcon name="i-lucide-log-out" class="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </Transition>
   </Teleport>
+  </ClientOnly>
 </template>
 
 <style scoped>
-.stc-slide-enter-active, .stc-slide-leave-active { transition: opacity .2s; }
-.stc-slide-enter-from, .stc-slide-leave-to { opacity: 0; }
+.stc-fade-enter-active, .stc-fade-leave-active { transition: opacity .2s; }
+.stc-fade-enter-from, .stc-fade-leave-to { opacity: 0; }
+.stc-sheet-enter-active, .stc-sheet-leave-active { transition: transform .26s cubic-bezier(.2,.8,.2,1); }
+.stc-sheet-enter-from, .stc-sheet-leave-to { transform: translateY(100%); }
 </style>

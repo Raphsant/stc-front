@@ -11,6 +11,7 @@ export default defineNuxtConfig({
     },
     app: {
         head: {
+            viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
             link: [
                 {rel: 'icon', type: 'image/x-icon', href: '/faviconstc.ico'},
                 {rel: 'icon', type: 'image/png', href: '/brand/stc-mark.png'},

@@ -427,6 +427,56 @@ function videoProgressPct(v: { timestamp: number, duration: number }): number {
   return Math.min(100, Math.max(0, Math.round((v.timestamp / v.duration) * 100)))
 }
 
+// ══ Móvil (<768px): cabecera compacta, acciones rápidas, pestañas ══
+// El CSS solo oculta los paneles inactivos en móvil; en escritorio se ve todo.
+const mTab = ref<'resumen' | 'bitacora' | 'actividad'>('resumen')
+
+const tierBadges = computed(() =>
+  (user.value?.roles ?? []).filter((r: string) => roleClass[r]).map((r: string) => ({ label: r.replace(/\.$/, ''), cls: roleClass[r] })),
+)
+
+const whatsappUrl = computed(() => {
+  const digits = (contact.value?.phone ?? '').replace(/\D/g, '')
+  return digits.length >= 8 ? `https://wa.me/${digits}` : null
+})
+
+// Seguimiento abierto con fecha de recontacto más próxima.
+const nextStep = computed(() => {
+  const time = (e: JournalEntry) => (e.recontactDate ? new Date(e.recontactDate).getTime() : Number.POSITIVE_INFINITY)
+  const entry = [...openFollowUps.value].sort((a, b) => time(a) - time(b))[0]
+  const f = entry?.analysisResult?.follow_up
+  if (!entry || !f) return null
+  return {
+    id: entry._id,
+    action: actionTypeLabel(f.action_type),
+    objective: f.objective,
+    message: f.suggested_message_es,
+    date: formatDay(entry.recontactDate),
+    overdue: !!entry.recontactDate && new Date(entry.recontactDate).getTime() < Date.now(),
+  }
+})
+
+// Entradas de bitácora desplegadas en móvil (plegadas por defecto).
+const openEntries = ref(new Set<string>())
+function toggleEntry(id: string) {
+  const next = new Set(openEntries.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  openEntries.value = next
+}
+function isLongEntry(entry: JournalEntry) {
+  return entry.analysisStatus === 'done' || (entry.type === 'text' && entry.content.length > 220)
+}
+
+async function goToEntry(id: string) {
+  mTab.value = 'bitacora'
+  if (!openEntries.value.has(id)) toggleEntry(id)
+  await nextTick()
+  document.getElementById(`entry-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+const composerOpen = ref(false)
+
 function initial(name?: string) {
   return (name || '?').replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase() || '?'
 }
@@ -456,6 +506,85 @@ function initial(name?: string) {
     </section>
 
     <template v-else-if="user">
+      <!-- ══ Móvil: cabecera compacta + acciones + siguiente paso + pestañas ══ -->
+      <div class="pm-head">
+        <div class="pm-av">
+          <img v-if="user.avatarUrl" :src="user.avatarUrl" :alt="user.username">
+          <template v-else>{{ initial(user.username) }}</template>
+          <span v-if="engagement.state === 'active'" class="pm-online" />
+        </div>
+        <div class="pm-id">
+          <h1 class="pm-name">{{ user.username }}</h1>
+          <div class="pm-badges">
+            <span v-for="t in tierBadges" :key="t.label" class="stc-badge" :class="t.cls">{{ t.label }}</span>
+            <span class="stc-badge" :class="ENGAGEMENT_TONE[engagement.color]">{{ engagement.label }}</span>
+            <span v-if="user.removedAt" class="stc-badge red">Eliminado</span>
+          </div>
+          <div v-if="user.joinedAt" class="pm-since stc-mono">Miembro {{ formatRelativeTime(user.joinedAt) }}</div>
+        </div>
+      </div>
+
+      <nav class="pm-acts" aria-label="Acciones rápidas">
+        <a :href="`discord://-/users/${user._id}`" class="pm-act">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="pm-act-i" aria-hidden="true">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.055 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.19.372-.287a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.097.246.193.373.287a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+              </svg>
+          Discord
+        </a>
+        <a v-if="whatsappUrl" :href="whatsappUrl" target="_blank" rel="noopener" class="pm-act">
+          <UIcon name="i-lucide-message-circle" class="pm-act-i" />WhatsApp
+        </a>
+        <span v-else class="pm-act off" aria-disabled="true" title="Sin teléfono en ClickFunnels">
+          <UIcon name="i-lucide-message-circle" class="pm-act-i" />WhatsApp
+        </span>
+        <a v-if="contact?.email" :href="`mailto:${contact.email}`" class="pm-act">
+          <UIcon name="i-lucide-mail" class="pm-act-i" />Email
+        </a>
+        <span v-else class="pm-act off" aria-disabled="true" title="Sin email en ClickFunnels">
+          <UIcon name="i-lucide-mail" class="pm-act-i" />Email
+        </span>
+        <NuxtLink :to="`/meetings?userId=${user._id}`" class="pm-act">
+          <UIcon name="i-lucide-calendar-days" class="pm-act-i" />Reuniones
+        </NuxtLink>
+      </nav>
+
+      <section v-if="nextStep" class="pm-next" aria-label="Siguiente paso">
+        <div class="pm-next-head">
+          <span class="pm-next-ey"><UIcon name="i-lucide-sparkles" class="w-3.5 h-3.5" />Siguiente paso · IA</span>
+          <span v-if="nextStep.date" class="pm-next-date stc-mono" :class="{ overdue: nextStep.overdue }">
+            <UIcon name="i-lucide-calendar-clock" class="w-3.5 h-3.5" />{{ nextStep.date }}
+          </span>
+        </div>
+        <div class="pm-next-t">{{ nextStep.action }}</div>
+        <p v-if="nextStep.objective" class="pm-next-obj">{{ nextStep.objective }}</p>
+        <div class="pm-next-btns">
+          <button v-if="nextStep.message" type="button" class="stc-btn sm gold" @click="copyMessage(nextStep.message)">
+            <UIcon name="i-lucide-copy" class="w-3.5 h-3.5" />Copiar mensaje
+          </button>
+          <button type="button" class="stc-btn sm" @click="goToEntry(nextStep.id)">Ver en bitácora</button>
+        </div>
+      </section>
+
+      <div class="pm-tabs" role="tablist" aria-label="Secciones del perfil">
+        <button type="button" role="tab" :aria-selected="mTab === 'resumen'" :class="{ on: mTab === 'resumen' }" @click="mTab = 'resumen'">Resumen</button>
+        <button type="button" role="tab" :aria-selected="mTab === 'bitacora'" :class="{ on: mTab === 'bitacora' }" @click="mTab = 'bitacora'">
+          Bitácora<span v-if="journal?.length" class="pm-tab-n stc-mono">{{ journal.length }}</span>
+        </button>
+        <button type="button" role="tab" :aria-selected="mTab === 'actividad'" :class="{ on: mTab === 'actividad' }" @click="mTab = 'actividad'">Actividad</button>
+      </div>
+
+      <!-- Resumen (móvil): métricas clave -->
+      <div class="pm-pane pm-only" :class="{ 'pm-hidden': mTab !== 'resumen' }">
+        <div class="pm-stats stc-panel">
+          <div><b class="gold">{{ user.meetingCount }}</b><span>reuniones</span></div>
+          <div>
+            <USkeleton v-if="activityPending" class="h-5 w-10 mx-auto" />
+            <b v-else>{{ activity?.totals?.last30 ?? 0 }}</b><span>msgs 30d</span>
+          </div>
+          <div><b class="sm">{{ lastActive ? formatRelativeTime(lastActive) : 'nunca' }}</b><span>última actividad</span></div>
+        </div>
+      </div>
+
       <!-- ── Cabecera de perfil ────────────────────────────── -->
       <section class="stc-panel up-hero">
         <div class="up-av">
@@ -514,6 +643,7 @@ function initial(name?: string) {
         </div>
       </section>
 
+      <div class="pm-pane" :class="{ 'pm-hidden': mTab !== 'resumen' }">
       <!-- ── Contacto (ClickFunnels) ───────────────────────── -->
       <section class="stc-panel">
         <div class="stc-panel-head">
@@ -574,6 +704,9 @@ function initial(name?: string) {
         </dl>
       </section>
 
+      </div>
+
+      <div class="pm-pane" :class="{ 'pm-hidden': mTab !== 'actividad' }">
       <!-- ── Actividad ─────────────────────────────────────── -->
       <section class="stc-panel">
         <div class="stc-panel-head">
@@ -721,6 +854,9 @@ function initial(name?: string) {
         </ul>
       </section>
 
+      </div>
+
+      <div class="pm-pane" :class="{ 'pm-hidden': mTab !== 'bitacora' }">
       <!-- ── Bitácora ──────────────────────────────────────── -->
       <section class="stc-panel">
         <div class="stc-panel-head">
@@ -734,8 +870,15 @@ function initial(name?: string) {
         </div>
 
         <div class="up-pad">
-          <!-- Formulario -->
-          <div v-if="loggedIn" class="up-form">
+          <!-- Formulario (en móvil, plegado tras un botón) -->
+          <button
+            v-if="loggedIn" type="button" class="pm-compose" :class="{ open: composerOpen }"
+            :aria-expanded="composerOpen" @click="composerOpen = !composerOpen"
+          >
+            <UIcon :name="composerOpen ? 'i-lucide-x' : 'i-lucide-plus'" class="w-4 h-4" />
+            {{ composerOpen ? 'Cerrar' : 'Añadir entrada' }}
+          </button>
+          <div v-if="loggedIn" class="up-form" :class="{ 'pm-form-open': composerOpen }">
             <div class="stc-seg" style="width:fit-content; margin-bottom:12px">
               <button
                 v-for="item in journalTypeItems"
@@ -901,7 +1044,10 @@ function initial(name?: string) {
             <p>Aún no hay entradas en la bitácora.</p>
           </div>
           <ol v-else class="up-timeline">
-            <li v-for="entry in journal" :key="entry._id" class="up-tl-item">
+            <li
+              v-for="entry in journal" :id="`entry-${entry._id}`" :key="entry._id"
+              class="up-tl-item" :class="{ 'pm-open': openEntries.has(entry._id), 'pm-long': isLongEntry(entry) }"
+            >
               <span class="up-tl-node" />
               <div class="up-entry" :class="{ flagged: entry.markedForDeletion }">
                 <div class="up-entry-head">
@@ -1064,6 +1210,12 @@ function initial(name?: string) {
                   <span>Error al analizar{{ entry.analysisError ? `: ${entry.analysisError}` : '' }}</span>
                 </div>
 
+                <!-- Móvil: desplegar / plegar -->
+                <button v-if="isLongEntry(entry)" type="button" class="pm-more" @click="toggleEntry(entry._id)">
+                  {{ openEntries.has(entry._id) ? 'Ver menos' : (entry.analysisStatus === 'done' ? 'Ver análisis completo' : 'Ver todo') }}
+                  <UIcon :name="openEntries.has(entry._id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="w-3.5 h-3.5" />
+                </button>
+
                 <!-- Acciones -->
                 <div v-if="loggedIn" class="up-entry-actions">
                   <button
@@ -1099,6 +1251,9 @@ function initial(name?: string) {
         </div>
       </section>
 
+      </div>
+
+      <div class="pm-pane" :class="{ 'pm-hidden': mTab !== 'actividad' }">
       <!-- ── Información técnica ───────────────────────────── -->
       <section class="stc-panel">
         <div class="stc-panel-head">
@@ -1120,6 +1275,7 @@ function initial(name?: string) {
           </div>
         </div>
       </section>
+      </div>
     </template>
   </div>
 </template>
@@ -1699,5 +1855,146 @@ html:not(.dark) .up-msg { background: #fff; }
   .up-pad  { padding: 16px; }
   .up-vid  { flex-wrap: wrap; }
   .up-vid-time { width: 100%; text-align: left; }
+}
+
+/* ══ Móvil (<768px): pestañas (.pm-*) ═══════════════════════ */
+.pm-head, .pm-acts, .pm-next, .pm-tabs, .pm-only, .pm-compose, .pm-more { display: none; }
+.pm-pane { display: contents; }
+
+@media (max-width: 767px) {
+  .up-page { gap: 12px; }
+  .up-hero { display: none; }
+  .pm-pane.pm-hidden { display: none; }
+
+  /* Cabecera compacta */
+  .pm-head { display: flex; align-items: center; gap: 14px; padding: 4px 2px 0; }
+  .pm-av {
+    position: relative; width: 64px; height: 64px; flex-shrink: 0; border-radius: 16px;
+    display: grid; place-items: center; font-family: var(--disp); font-weight: 800; font-size: 30px;
+    color: var(--gold-ink); background: linear-gradient(150deg, var(--gold-soft), var(--gold));
+  }
+  .pm-av img { width: 100%; height: 100%; border-radius: 16px; object-fit: cover; }
+  .pm-online {
+    position: absolute; right: -3px; bottom: -3px; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--green); border: 3px solid var(--bg);
+  }
+  .pm-id { min-width: 0; flex: 1; }
+  .pm-name {
+    font-family: var(--disp); font-size: 28px; font-weight: 800; line-height: 1;
+    text-transform: uppercase; letter-spacing: .01em; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pm-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  .pm-since { margin-top: 6px; font-size: 12px; color: var(--faint); }
+
+  /* Acciones rápidas */
+  .pm-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .pm-act {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    min-height: 60px; padding: 8px 4px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--panel);
+    color: var(--dim); font-size: 11.5px; font-weight: 600; text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pm-act:active { background: var(--panel-2); }
+  .pm-act-i { width: 20px; height: 20px; color: var(--gold); }
+  .pm-act.off { opacity: .45; }
+  .pm-act.off .pm-act-i { color: var(--faint); }
+
+  /* Siguiente paso */
+  .pm-next {
+    display: block; padding: 14px; border-radius: var(--r);
+    border: 1px solid var(--gold-line); background: var(--gold-bg);
+  }
+  html:not(.dark) .pm-next { background: var(--gold-wash); }
+  .pm-next-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pm-next-ey {
+    display: inline-flex; align-items: center; gap: 5px; color: var(--gold);
+    font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  }
+  .pm-next-date { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--dim); }
+  .pm-next-date.overdue { color: var(--red); }
+  .pm-next-t { margin-top: 8px; font-size: 16px; font-weight: 700; color: var(--text); }
+  .pm-next-obj {
+    margin-top: 4px; font-size: 13.5px; line-height: 1.5; color: var(--dim);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .pm-next-btns { display: flex; gap: 8px; margin-top: 12px; }
+  .pm-next-btns .stc-btn { flex: 1; min-height: 40px; justify-content: center; }
+
+  /* Pestañas: subrayado, fijas bajo la barra superior */
+  .pm-tabs {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; margin: 0 -16px; padding: 0 16px;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  .pm-tabs button {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 46px; border: 0; background: transparent; cursor: pointer;
+    color: var(--dim); font-family: var(--ui); font-size: 14px; font-weight: 600;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .pm-tabs button.on { color: var(--gold-soft); border-bottom-color: var(--gold); }
+  .pm-tab-n {
+    font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--line); color: var(--dim);
+  }
+  .pm-tabs button.on .pm-tab-n { background: var(--gold-wash); color: var(--gold-soft); }
+
+  /* Resumen: métricas */
+  .pm-only { display: contents; }
+  .pm-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 14px 6px; text-align: center; }
+  .pm-stats > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0 4px; }
+  .pm-stats > div + div { border-left: 1px solid var(--line); }
+  .pm-stats b { font-family: var(--disp); font-size: 28px; font-weight: 800; line-height: 1; color: var(--text); }
+  .pm-stats b.gold { color: var(--gold); }
+  .pm-stats b.sm { font-family: var(--ui); font-size: 14px; font-weight: 700; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pm-stats span { font-size: 11px; color: var(--faint); }
+  /* ya están en Resumen */
+  .up-stats { display: none; }
+  .up-stats + .up-block { margin-top: 0; }
+
+  /* Bitácora: formulario plegado tras un botón */
+  .pm-compose {
+    display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%;
+    min-height: 44px; border-radius: var(--r-sm); cursor: pointer;
+    border: 1px dashed var(--gold-ring); background: transparent;
+    color: var(--gold-soft); font-family: var(--ui); font-size: 14px; font-weight: 600;
+  }
+  .pm-compose.open { border-style: solid; border-color: var(--line-2); color: var(--dim); margin-bottom: 12px; }
+  .up-form:not(.pm-form-open) { display: none; }
+  .up-form { margin-bottom: 4px; }
+
+  /* Entradas plegadas: resumen escaneable, el resto bajo "Ver análisis completo" */
+  .up-tl-item.pm-long:not(.pm-open) .up-quote,
+  .up-tl-item.pm-long:not(.pm-open) .up-ai-cols,
+  .up-tl-item.pm-long:not(.pm-open) .up-ai-pattern,
+  .up-tl-item.pm-long:not(.pm-open) .up-next-obj,
+  .up-tl-item.pm-long:not(.pm-open) .up-msg,
+  .up-tl-item.pm-long:not(.pm-open) .up-next-why,
+  .up-tl-item.pm-long:not(.pm-open) .up-ai-flags,
+  .up-tl-item.pm-long:not(.pm-open) .up-ai-legacy,
+  .up-tl-item.pm-long:not(.pm-open) .up-entry-actions { display: none; }
+  .up-tl-item.pm-long:not(.pm-open) .up-ai-p,
+  .up-tl-item.pm-long:not(.pm-open) .up-entry-text {
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .up-tl-item.pm-long:not(.pm-open) .up-entry-imgs .up-entry-img img { height: 120px; max-height: 120px; }
+  .up-tl-item.pm-long:not(.pm-open) .up-entry-imgs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+
+  .up-tl-item { scroll-margin-top: 62px; } /* bajo las pestañas fijas */
+
+  /* Más ancho útil: carril de la línea de tiempo y rellenos más estrechos */
+  .up-timeline { padding-left: 16px; }
+  .up-timeline::before { left: 3px; }
+  .up-tl-node { left: -17px; width: 9px; height: 9px; }
+  .up-entry { padding: 12px; }
+  .up-ai { padding: 11px 12px; }
+  .up-ai-tags { gap: 5px; }
+
+  .pm-more {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; padding: 0;
+    border: 0; background: transparent; cursor: pointer;
+    color: var(--gold-soft); font-family: var(--ui); font-size: 13px; font-weight: 600;
+  }
 }
 </style>

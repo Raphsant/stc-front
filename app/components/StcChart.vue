@@ -11,6 +11,21 @@ const props = withDefaults(defineProps<{
 const svgEl  = ref<SVGSVGElement | null>(null)
 const wrapEl = ref<HTMLDivElement | null>(null)
 
+// El SVG se dibuja al ancho real del contenedor: con un viewBox fijo
+// estirado (preserveAspectRatio="none") el texto quedaba ilegible en móvil.
+const width = ref(820)
+let ro: ResizeObserver | null = null
+onMounted(() => {
+  if (!wrapEl.value) return
+  width.value = Math.round(wrapEl.value.clientWidth) || 820
+  ro = new ResizeObserver(([entry]) => {
+    const w = Math.round(entry!.contentRect.width)
+    if (w > 0 && w !== width.value) width.value = w
+  })
+  ro.observe(wrapEl.value)
+})
+onBeforeUnmount(() => ro?.disconnect())
+
 const readout = reactive({
   visible: false,
   x: 0,
@@ -48,8 +63,8 @@ const svgContent = computed(() => {
   const data = props.data
   if (!data?.length) return ''
 
-  const W = 820, H = props.height
-  const padL = 42, padR = 14, padT = 14, padB = 30
+  const W = width.value, H = props.height
+  const padL = W < 500 ? 32 : 42, padR = W < 500 ? 8 : 14, padT = 14, padB = 30
   const plotW = W - padL - padR, plotH = H - padT - padB
 
   const maxV = Math.max(...data.map(d => d.value), 1)
@@ -63,7 +78,8 @@ const svgContent = computed(() => {
 
   pts = data.map((d, i) => ({ x: xFn(i), y: yFn(d.value), value: d.value, label: d.label }))
 
-  const showEvery = Math.ceil(data.length / 8)
+  const maxXLabels = Math.max(3, Math.min(8, Math.floor(plotW / 80)))
+  const showEvery = Math.ceil(data.length / maxXLabels)
   const linePath = smooth(pts)
   const last = pts[pts.length - 1]!
   const first = pts[0]!
@@ -91,8 +107,13 @@ const svgContent = computed(() => {
 
   // X labels (thinned)
   pts.forEach((p, i) => {
-    if (i % showEvery === 0 || i === pts.length - 1) {
-      out += `<text x="${p.x}" y="${H - 10}" text-anchor="middle" font-family="Inter" font-size="9.5" fill="#6b6b6b">${p.label}</text>`
+    const isLast = i === pts.length - 1
+    // la última etiqueta se omite si choca con la anterior mostrada
+    if (i % showEvery === 0 || (isLast && (i % showEvery) > showEvery / 2)) {
+      // En gráficos estrechos, "2026-10-15" → "10-15"; los extremos se anclan hacia dentro.
+      const label = W < 500 ? p.label.replace(/^\d{4}-(\d{2}-\d{2})$/, '$1') : p.label
+      const anchor = p.x > W - padR - 30 ? 'end' : p.x < padL + 30 ? 'start' : 'middle'
+      out += `<text x="${p.x}" y="${H - 10}" text-anchor="${anchor}" font-family="Inter" font-size="9.5" fill="#6b6b6b">${label}</text>`
     }
   })
 
@@ -111,7 +132,7 @@ const svgContent = computed(() => {
 })
 
 // ── hover ──────────────────────────────────────────────────
-function onMouseMove(e: MouseEvent) {
+function onMouseMove(e: PointerEvent) {
   if (!pts.length || !svgEl.value) return
   const rect = svgEl.value.getBoundingClientRect()
   const vb = svgEl.value.viewBox.baseVal
@@ -138,12 +159,16 @@ function onMouseMove(e: MouseEvent) {
 
   readout.value   = best.value.toLocaleString('es') + ' registros'
   readout.label   = best.label
-  readout.x       = (best.x / vb.width)  * rect.width
+  // mantener la lectura dentro del gráfico (≈ media anchura del globo)
+  const rx = (best.x / vb.width) * rect.width
+  readout.x       = Math.min(Math.max(rx, 56), rect.width - 56)
   readout.y       = (best.y / vb.height) * rect.height
   readout.visible = true
 }
 
-function onMouseLeave() {
+function onMouseLeave(e?: PointerEvent) {
+  // En táctil, la lectura se queda visible tras levantar el dedo.
+  if (e?.pointerType === 'touch') return
   readout.visible = false
   if (!svgEl.value) return
   const cross = svgEl.value.querySelector('.stc-cross')
@@ -157,13 +182,14 @@ function onMouseLeave() {
   <div ref="wrapEl" class="relative" style="margin-top:16px">
     <svg
       ref="svgEl"
-      :viewBox="`0 0 820 ${height}`"
+      :viewBox="`0 0 ${width} ${height}`"
       preserveAspectRatio="none"
       class="block w-full"
-      :style="{ height: height + 'px' }"
+      :style="{ height: height + 'px', touchAction: 'pan-y' }"
       v-html="svgContent"
-      @mousemove="onMouseMove"
-      @mouseleave="onMouseLeave"
+      @pointermove="onMouseMove"
+      @pointerdown="onMouseMove"
+      @pointerleave="onMouseLeave"
     />
     <div
       class="stc-readout"

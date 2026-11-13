@@ -11,10 +11,22 @@ export default defineNuxtConfig({
     },
     app: {
         head: {
+            viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
+            // PWA: instalable en Android/escritorio (manifest) e iOS (meta apple-*).
+            meta: [
+                {name: 'theme-color', content: '#000000'},
+                {name: 'application-name', content: 'STC Control'},
+                {name: 'mobile-web-app-capable', content: 'yes'},
+                {name: 'apple-mobile-web-app-capable', content: 'yes'},
+                {name: 'apple-mobile-web-app-title', content: 'STC'},
+                // Pantalla completa bajo la barra de estado; la topbar compensa con safe-area-inset-top.
+                {name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent'},
+            ],
             link: [
+                {rel: 'manifest', href: '/manifest.webmanifest'},
                 {rel: 'icon', type: 'image/x-icon', href: '/faviconstc.ico'},
                 {rel: 'icon', type: 'image/png', href: '/brand/stc-mark.png'},
-                {rel: 'apple-touch-icon', href: '/brand/stc-mark.png'},
+                {rel: 'apple-touch-icon', sizes: '180x180', href: '/icons/apple-touch-icon.png'},
                 {rel: 'preconnect', href: 'https://fonts.googleapis.com'},
                 {rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: ''},
                 {

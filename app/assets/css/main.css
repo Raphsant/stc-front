@@ -398,6 +398,12 @@ html:not(.dark) .stc-nav-item:hover { background: rgba(0,0,0,.04); }
   border-bottom: 1px solid var(--line);
 }
 html:not(.dark) .stc-topbar { background: rgba(247,245,240,.88); }
+/* App instalada en iOS (status bar black-translucent): el contenido empieza
+   bajo la barra de estado, así que la topbar baja lo que mida ese recorte.
+   En navegador normal env() vale 0 y no cambia nada. */
+@media (max-width: 767px) {
+  .stc-topbar { padding-top: calc(14px + env(safe-area-inset-top)); }
+}
 
 .stc-topbar-title {
   font-family: var(--disp);
@@ -490,6 +496,148 @@ html:not(.dark) .stc-top-icon:hover { background: rgba(0,0,0,.03); }
 .stc-ibtn:hover {
   color: var(--gold-soft);
   background: var(--gold-wash);
+}
+
+/* ─── Navegación móvil: píldora flotante ──────────────────── */
+/* Espacio inferior del contenido: en móvil deja sitio a la píldora. */
+.stc-page { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+@media (min-width: 768px) { .stc-page { padding-bottom: 44px; } }
+
+.stc-pill {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 6px;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: rgba(17,17,17,.88);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.55);
+}
+html:not(.dark) .stc-pill {
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 10px 30px rgba(60,45,20,.14);
+}
+
+.stc-pill-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0; /* el hueco va en el margen de la etiqueta: oculta no debe ocupar sitio */
+  min-width: 46px;
+  height: 46px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--faint);
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .2s, background .2s, padding .2s;
+}
+.stc-pill-item:active { transform: scale(.96); }
+.stc-pill-icon { width: 21px; height: 21px; flex-shrink: 0; }
+
+.stc-pill-label {
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width .25s ease, margin-left .25s ease, opacity .2s;
+}
+.stc-pill-item.active {
+  color: var(--gold-soft);
+  background: var(--gold-wash);
+  padding: 0 13px 0 12px;
+}
+.stc-pill-item.active .stc-pill-label { max-width: 120px; margin-left: 7px; opacity: 1; }
+.stc-pill-label { text-overflow: ellipsis; }
+/* Teléfonos estrechos: "Seguimientos" no cabe a 12.5px */
+@media (max-width: 374px) {
+  .stc-pill { left: 8px; right: 8px; }
+  .stc-pill-item.active .stc-pill-label { font-size: 11.5px; margin-left: 5px; }
+}
+
+/* Hoja "Más" */
+.stc-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0,0,0,.6);
+}
+.stc-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  padding: 10px 16px calc(92px + env(safe-area-inset-bottom));
+  background: var(--panel);
+  border-top: 1px solid var(--line-2);
+  border-radius: 20px 20px 0 0;
+}
+.stc-sheet-grip {
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 4px;
+  background: var(--line-2);
+}
+.stc-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.stc-sheet-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 76px;
+  padding: 10px 6px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--dim);
+  font-family: var(--ui);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.stc-sheet-tile .iconify, .stc-sheet-tile svg { color: var(--gold); }
+.stc-sheet-tile.active {
+  color: var(--gold-soft);
+  border-color: var(--gold-ring);
+  background: var(--gold-wash);
+}
+
+/* Los modales y slideovers de Nuxt UI no fijan z-index (se apilan por orden
+   en el DOM), así que la píldora (z 60) quedaba por encima. Se elevan aquí. */
+body > [data-slot="overlay"],
+body > [data-slot="content"][role="dialog"] { z-index: 80; }
+
+/* Solo móvil: estas reglas no están en una capa, así que `md:hidden` no basta. */
+@media (min-width: 768px) {
+  .stc-pill, .stc-sheet, .stc-sheet-backdrop { display: none; }
 }
 
 /* ─── Botones ─────────────────────────────────────────────── */
@@ -995,25 +1143,28 @@ html:not(.dark) .stc-scroll::-webkit-scrollbar-thumb {
 ::selection { background: var(--gold-ring); color: var(--text); }
 
 /* ─── Franja de consola — móvil ───────────────────────────── */
+/* Identidad arriba; Bot, Uptime y Discord en una fila compacta.
+   "Servicio" repite el estado del bot, así que se oculta. */
 @media (max-width: 640px) {
   .stc-console {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .stc-cseg { padding: 11px 12px; gap: 4px; }
+  .stc-cseg .stc-eyebrow { font-size: 9px; letter-spacing: .12em; }
+  .stc-cval { font-size: 13px; gap: 7px; }
   .stc-cseg.identity {
     grid-column: 1 / -1;
     min-width: 0;
+    gap: 11px;
+    padding: 13px 14px;
     border-right: none;
     border-bottom: 1px solid var(--line);
   }
-  .stc-cseg:nth-child(2),
-  .stc-cseg:nth-child(3) {
-    border-bottom: 1px solid var(--line);
-  }
-  .stc-cseg:nth-child(3),
-  .stc-cseg:nth-child(5) {
-    border-right: none;
-  }
+  .stc-cseg.identity .stc-id-glyph { width: 34px; height: 34px; }
+  .stc-cseg.identity .stc-display { font-size: 20px !important; }
+  .stc-cseg:nth-child(4) { border-right: none; }
+  .stc-cseg:nth-child(5) { display: none; }
   .stc-page-title { font-size: 28px; }
 }
 

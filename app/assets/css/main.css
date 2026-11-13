@@ -526,7 +526,7 @@ html:not(.dark) .stc-pill {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 0; /* el hueco va en el margen de la etiqueta: oculta no debe ocupar sitio */
   min-width: 46px;
   height: 46px;
   padding: 0 12px;
@@ -548,16 +548,23 @@ html:not(.dark) .stc-pill {
 
 .stc-pill-label {
   max-width: 0;
+  margin-left: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-width .25s ease, opacity .2s;
+  transition: max-width .25s ease, margin-left .25s ease, opacity .2s;
 }
 .stc-pill-item.active {
   color: var(--gold-soft);
   background: var(--gold-wash);
-  padding: 0 16px 0 14px;
+  padding: 0 13px 0 12px;
 }
-.stc-pill-item.active .stc-pill-label { max-width: 120px; opacity: 1; }
+.stc-pill-item.active .stc-pill-label { max-width: 120px; margin-left: 7px; opacity: 1; }
+.stc-pill-label { text-overflow: ellipsis; }
+/* Teléfonos estrechos: "Seguimientos" no cabe a 12.5px */
+@media (max-width: 374px) {
+  .stc-pill { left: 8px; right: 8px; }
+  .stc-pill-item.active .stc-pill-label { font-size: 11.5px; margin-left: 5px; }
+}
 
 /* Hoja "Más" */
 .stc-sheet-backdrop {

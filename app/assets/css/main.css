@@ -398,6 +398,12 @@ html:not(.dark) .stc-nav-item:hover { background: rgba(0,0,0,.04); }
   border-bottom: 1px solid var(--line);
 }
 html:not(.dark) .stc-topbar { background: rgba(247,245,240,.88); }
+/* App instalada en iOS (status bar black-translucent): el contenido empieza
+   bajo la barra de estado, así que la topbar baja lo que mida ese recorte.
+   En navegador normal env() vale 0 y no cambia nada. */
+@media (max-width: 767px) {
+  .stc-topbar { padding-top: calc(14px + env(safe-area-inset-top)); }
+}
 
 .stc-topbar-title {
   font-family: var(--disp);

@@ -35,6 +35,21 @@ type Period = 'diario' | 'semanal' | 'mensual'
 const period    = ref<Period>('diario')
 const chartFrom = ref('')
 const chartTo   = ref('')
+const showDates = ref(false)
+
+// Móvil: gráfico más bajo y rango de fechas plegado tras un botón.
+// Se evalúa tras montar: el servidor no conoce el ancho y un valor distinto
+// en la hidratación deja clases desincronizadas.
+const isMobile = ref(false)
+let mq: MediaQueryList | null = null
+const onMq = () => { isMobile.value = !!mq?.matches }
+onMounted(() => {
+  mq = window.matchMedia('(max-width: 767px)')
+  onMq()
+  mq.addEventListener('change', onMq)
+})
+onBeforeUnmount(() => mq?.removeEventListener('change', onMq))
+const datesOpen = computed(() => !isMobile.value || showDates.value || !!chartFrom.value || !!chartTo.value)
 
 const periodMap: Record<Period, string> = { diario: 'daily', semanal: 'weekly', mensual: 'monthly' }
 
@@ -158,7 +173,7 @@ function formatDateShort(date: string | Date) {
           <div class="stc-panel-title">Registros por período</div>
           <div class="stc-eyebrow" style="margin-top:5px">Nuevos registros a meetings</div>
         </div>
-        <div class="flex items-end flex-wrap" style="gap:14px">
+        <div class="stc-chart-controls flex items-end flex-wrap" style="gap:14px">
           <div class="stc-seg">
             <button
               v-for="p in (['diario','semanal','mensual'] as Period[])"
@@ -169,6 +184,17 @@ function formatDateShort(date: string | Date) {
               {{ p.charAt(0).toUpperCase() + p.slice(1) }}
             </button>
           </div>
+          <button
+            type="button"
+            class="stc-dates-toggle"
+            :class="{ on: datesOpen }"
+            :aria-expanded="datesOpen"
+            aria-label="Rango de fechas"
+            @click="showDates = !showDates"
+          >
+            <UIcon name="i-lucide-calendar-range" class="w-4 h-4" />
+          </button>
+          <template v-if="datesOpen">
           <div class="stc-dfield">
             <label>Desde</label>
             <input v-model="chartFrom" type="date" />
@@ -186,6 +212,7 @@ function formatDateShort(date: string | Date) {
           >
             <UIcon name="i-lucide-x" class="w-3.5 h-3.5" />
           </button>
+          </template>
         </div>
       </div>
 
@@ -196,7 +223,7 @@ function formatDateShort(date: string | Date) {
         <span style="font-size:13px; color:var(--faint)">No hay datos para este período.</span>
       </div>
       <ClientOnly v-else>
-        <StcChart :data="chartData" :height="320" />
+        <StcChart :data="chartData" :height="isMobile ? 220 : 320" />
       </ClientOnly>
     </div>
 
@@ -334,5 +361,55 @@ function formatDateShort(date: string | Date) {
 }
 @media (max-width: 720px) {
   .stc-rail { flex-direction: column; }
+}
+
+.stc-dates-toggle { display: none; }
+
+/* ─── Móvil ─────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* KPIs primero, en dos columnas compactas */
+  .stc-grid-main { gap: 12px; }
+  .stc-rail {
+    order: -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .stc-rail :deep(.stc-tile) { padding: 14px; gap: 8px; }
+  .stc-rail :deep(.stc-tile-head .lbl) { font-size: 9.5px; letter-spacing: .12em; }
+  .stc-rail :deep(.stc-tile-val) { font-size: 36px; }
+  .stc-rail :deep(.stc-tile-foot) { gap: 6px; }
+  .stc-rail :deep(.stc-delta-note) { font-size: 10.5px; }
+  .stc-rail :deep(.stc-spark) { height: 28px; }
+
+  /* Gráfico: controles a lo ancho, fechas tras el botón de calendario */
+  .stc-chart-panel { padding: 16px 14px 12px; }
+  .stc-chart-controls { width: 100%; gap: 8px !important; }
+  .stc-chart-controls .stc-seg { flex: 1 1 calc(100% - 46px); }
+  .stc-chart-controls .stc-seg button { flex: 1; padding: 9px 6px; }
+  .stc-chart-controls .stc-dfield { flex: 1; min-width: 0; }
+  .stc-chart-controls .stc-dfield input { width: 100%; padding: 8px 9px; }
+  .stc-dates-toggle {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--dim);
+  }
+  .stc-dates-toggle.on {
+    color: var(--gold-soft);
+    border-color: var(--gold-ring);
+    background: var(--gold-wash);
+  }
+
+  /* Actividad: filas más compactas, sin la etiqueta repetida */
+  .stc-act-panel { padding: 14px 14px 4px; }
+  .stc-act-panel .stc-fitem { gap: 11px; padding: 11px 0; align-items: flex-start; }
+  .stc-act-panel .stc-fbody .fl { font-size: 13.5px; line-height: 1.4; }
+  .stc-act-panel .stc-ftype { display: none; }
 }
 </style>

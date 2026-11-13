@@ -1125,25 +1125,28 @@ html:not(.dark) .stc-scroll::-webkit-scrollbar-thumb {
 ::selection { background: var(--gold-ring); color: var(--text); }
 
 /* ─── Franja de consola — móvil ───────────────────────────── */
+/* Identidad arriba; Bot, Uptime y Discord en una fila compacta.
+   "Servicio" repite el estado del bot, así que se oculta. */
 @media (max-width: 640px) {
   .stc-console {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .stc-cseg { padding: 11px 12px; gap: 4px; }
+  .stc-cseg .stc-eyebrow { font-size: 9px; letter-spacing: .12em; }
+  .stc-cval { font-size: 13px; gap: 7px; }
   .stc-cseg.identity {
     grid-column: 1 / -1;
     min-width: 0;
+    gap: 11px;
+    padding: 13px 14px;
     border-right: none;
     border-bottom: 1px solid var(--line);
   }
-  .stc-cseg:nth-child(2),
-  .stc-cseg:nth-child(3) {
-    border-bottom: 1px solid var(--line);
-  }
-  .stc-cseg:nth-child(3),
-  .stc-cseg:nth-child(5) {
-    border-right: none;
-  }
+  .stc-cseg.identity .stc-id-glyph { width: 34px; height: 34px; }
+  .stc-cseg.identity .stc-display { font-size: 20px !important; }
+  .stc-cseg:nth-child(4) { border-right: none; }
+  .stc-cseg:nth-child(5) { display: none; }
   .stc-page-title { font-size: 28px; }
 }
 

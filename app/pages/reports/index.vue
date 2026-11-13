@@ -145,9 +145,31 @@ onMounted(() => {
 
 // ── Export ──
 const { busy, exportReport } = useReportExport()
-function onExport(format: ExportFormat) {
-  if (report.value) exportReport(format, report.value, title.value, chips.value.map(c => c.label))
+async function onExport(format: ExportFormat) {
+  if (report.value) await exportReport(format, report.value, title.value, chips.value.map(c => c.label))
+  exportOpen.value = false
 }
+
+// ── Móvil (<768px) ──
+// Pestañas: el CSS solo oculta el panel inactivo en móvil; en escritorio se ven ambos.
+const mTab = ref<'resumen' | 'usuarios'>('resumen')
+
+// Desgloses en carrusel: punto activo según el scroll horizontal.
+const bdsEl = ref<HTMLElement>()
+const bdIndex = ref(0)
+function onBdsScroll() {
+  const el = bdsEl.value
+  const card = el?.firstElementChild as HTMLElement | null
+  if (!el || !card) return
+  bdIndex.value = Math.round(el.scrollLeft / (card.offsetWidth + 12))
+}
+
+const exportOpen = ref(false)
+const EXPORT_FORMATS: { id: ExportFormat; label: string; hint: string; icon: string; tone: string }[] = [
+  { id: 'pdf', label: 'PDF', hint: 'Para compartir o imprimir', icon: 'i-lucide-file-text', tone: 'gold' },
+  { id: 'xlsx', label: 'Excel', hint: 'Con columnas y formato', icon: 'i-lucide-file-spreadsheet', tone: 'green' },
+  { id: 'csv', label: 'CSV', hint: 'Datos en bruto', icon: 'i-lucide-table', tone: 'dim' },
+]
 </script>
 
 <template>
@@ -185,6 +207,12 @@ function onExport(format: ExportFormat) {
               </button>
               <button type="button" class="r-link r-fclear" @click="reset">Limpiar todo</button>
             </div>
+            <button
+              type="button" class="stc-btn rm-share" :disabled="!total || !!error"
+              aria-label="Exportar reporte" @click="exportOpen = true"
+            >
+              <UIcon name="i-lucide-share" class="w-4 h-4" />
+            </button>
           </div>
 
           <!-- Presets -->
@@ -199,6 +227,18 @@ function onExport(format: ExportFormat) {
             </button>
           </div>
 
+          <!-- Móvil: pestañas Resumen / Usuarios -->
+          <div class="rm-tabs stc-seg" role="tablist" aria-label="Vista del reporte">
+            <button
+              type="button" role="tab" :aria-selected="mTab === 'resumen'" :class="{ on: mTab === 'resumen' }"
+              @click="mTab = 'resumen'"
+            >Resumen</button>
+            <button
+              type="button" role="tab" :aria-selected="mTab === 'usuarios'" :class="{ on: mTab === 'usuarios' }"
+              @click="mTab = 'usuarios'"
+            >Usuarios<span class="rm-tab-n stc-mono">{{ report ? n(total) : '—' }}</span></button>
+          </div>
+
           <!-- Error -->
           <div v-if="error" class="stc-panel stc-empty" role="alert">
             <UIcon name="i-lucide-triangle-alert" class="w-7 h-7" />
@@ -209,6 +249,7 @@ function onExport(format: ExportFormat) {
           </div>
 
           <template v-else>
+          <div class="rm-pane" :class="{ 'rm-hidden': mTab !== 'resumen' }" role="tabpanel">
             <!-- KPIs -->
             <div class="r-kpis" :class="{ 'r-stale': loading && report }">
               <div class="stc-panel stc-tile">
@@ -252,7 +293,7 @@ function onExport(format: ExportFormat) {
             </p>
 
             <!-- Breakdowns -->
-            <div class="r-bds" :class="{ 'r-stale': loading && report }">
+            <div ref="bdsEl" class="r-bds" :class="{ 'r-stale': loading && report }" @scroll.passive="onBdsScroll">
               <ReportsBreakdown
                 :title="locationBreakdown.title" icon="i-lucide-map-pin" :items="locationBreakdown.items" :total="total"
                 clickable hint="Toca para filtrar" @select="selectLocation"
@@ -270,11 +311,18 @@ function onExport(format: ExportFormat) {
               />
             </div>
 
+            <div class="rm-dots" aria-hidden="true">
+              <span v-for="i in 4" :key="i" :class="{ on: bdIndex === i - 1 }" />
+            </div>
+          </div>
+
+          <div class="rm-pane" :class="{ 'rm-hidden': mTab !== 'usuarios' }" role="tabpanel">
             <!-- Results -->
             <ReportsTable
               :rows="rows" :loading="loading" :sort-by="filters.sortBy" :sort-dir="filters.sortDir"
               @patch="patch" @clear="reset"
             />
+          </div>
           </template>
         </div>
 
@@ -312,6 +360,30 @@ function onExport(format: ExportFormat) {
         </div>
       </template>
     </USlideover>
+
+    <!-- Móvil: hoja de exportación (sustituye a la barra inferior) -->
+    <ClientOnly>
+    <Teleport to="body">
+      <Transition name="rm-fade">
+        <div v-if="exportOpen" class="rm-backdrop" @click="exportOpen = false" />
+      </Transition>
+      <Transition name="rm-sheet">
+        <div v-if="exportOpen" class="rm-sheet" role="dialog" aria-label="Exportar reporte">
+          <span class="r-sheet-grab rm-grab" aria-hidden="true" />
+          <div class="rm-sheet-title">Exportar reporte</div>
+          <div class="rm-sheet-sub">{{ n(total) }} {{ total === 1 ? 'usuario' : 'usuarios' }} · {{ title }}</div>
+          <button
+            v-for="(f, i) in EXPORT_FORMATS" :key="f.id" type="button" class="rm-exp" :class="{ primary: i === 0 }"
+            :disabled="!total || !!busy" @click="onExport(f.id)"
+          >
+            <UIcon :name="busy === f.id ? 'i-lucide-loader-circle' : f.icon" class="w-5 h-5" :class="[f.tone, { 'animate-spin': busy === f.id }]" />
+            <span class="rm-exp-txt"><b>{{ f.label }}</b><span>{{ f.hint }}</span></span>
+            <UIcon name="i-lucide-download" class="w-4 h-4 rm-exp-dl" />
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
+    </ClientOnly>
   </div>
 </template>
 
@@ -560,19 +632,10 @@ html:not(.dark) .r-export { box-shadow: 0 -8px 22px rgba(0,0,0,.08); }
 .r-export-n b { color: var(--text); font-weight: 600; }
 .r-export-btns { display: flex; gap: 8px; }
 .r-export-btns .stc-btn { min-height: 40px; }
+/* Móvil: la barra quedaba tapada por la píldora de navegación; la exportación
+   pasa a la hoja que abre el botón de compartir de la barra de herramientas. */
 @media (max-width: 767px) {
-  /* Full-bleed and flush with the bottom of the scroll area (cancels the layout's 16px gutter and 44px bottom padding) */
-  .r-export {
-    margin: 0 -16px -44px; border-radius: 0; border-width: 1px 0 0;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-  }
-  .r-export-info .stc-eyebrow { display: none; }
-  .r-export-btns { flex: 1; justify-content: flex-end; }
-  .r-export-btns .stc-btn { padding: 9px 12px; min-height: 44px; }
-}
-@media (max-width: 380px) {
-  .r-export-info { display: none; }
-  .r-export-btns .stc-btn { flex: 1; }
+  .r-export { display: none; }
 }
 
 /* ── Filter form ────────────────────────────────────────── */
@@ -662,4 +725,122 @@ html:not(.dark) .r-chip.on:not(.delta) { color: var(--gold-dark); }
   .r-fchip { padding: 9px 10px 9px 13px; font-size: 13px; }
   .r-bd-row { padding: 10px 8px 11px; }
 }
+
+/* ══ Móvil (<768px): pestañas, carrusel, lista compacta, exportar ══ */
+.rm-share, .rm-tabs, .rm-dots, .rm-list { display: none; }
+.rm-pane { display: contents; }
+
+@media (max-width: 767px) {
+  .r-head { display: none; }
+  .r-page, .r-main, .r-results { gap: 14px; }
+
+  .rm-share {
+    display: inline-flex; flex-shrink: 0; margin-left: auto;
+    min-width: 40px; min-height: 40px; padding: 0; justify-content: center;
+  }
+  .r-fclear { margin-right: 4px; }
+
+  .rm-tabs { display: flex; }
+  .rm-tabs button {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 40px; font-size: 13.5px;
+  }
+  .rm-tab-n {
+    font-size: 11.5px; padding: 1px 6px; border-radius: 999px;
+    background: var(--line); color: var(--dim);
+  }
+  .rm-tabs button.on .rm-tab-n { background: rgba(0,0,0,.18); color: var(--gold-ink); }
+
+  .rm-pane.rm-hidden { display: none; }
+
+  /* KPIs más compactos */
+  .r-kpis { gap: 10px; }
+  .r-kpis .stc-tile { padding: 12px 13px; gap: 6px; }
+  .r-kpis .stc-tile-val { font-size: 30px; }
+  .r-kpis .stc-tile-head .lbl { font-size: 9.5px; }
+
+  /* Desgloses: carrusel horizontal con snap */
+  .r-bds {
+    display: flex; gap: 12px; align-items: flex-start;
+    margin: 0 -16px; padding: 0 16px;
+    overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px;
+    scrollbar-width: none; overscroll-behavior-x: contain;
+  }
+  .r-bds::-webkit-scrollbar { display: none; }
+  .r-bds > .r-bd { flex: 0 0 86%; scroll-snap-align: start; min-width: 0; }
+  .rm-dots { display: flex; justify-content: center; gap: 5px; margin-top: -4px; }
+  .rm-dots span { width: 6px; height: 6px; border-radius: 999px; background: var(--line-2); transition: width .2s, background .2s; }
+  .rm-dots span.on { width: 18px; background: var(--gold); }
+
+  /* Lista: sustituye a la tabla y al paginador */
+  .r-table .r-thead, .r-table .r-rows, .r-table .r-pager { display: none; }
+  .rm-list { display: block; }
+  .rm-row {
+    display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 14px;
+    border-top: 1px solid var(--line); color: inherit; text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .rm-row:first-child { border-top: 0; }
+  .rm-row:active { background: var(--panel-2); }
+  .rm-av { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+  .rm-body { flex: 1; min-width: 0; }
+  .rm-name {
+    display: flex; align-items: center; gap: 6px; min-width: 0;
+    font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.25;
+  }
+  .rm-tier { flex-shrink: 0; padding: 1px 6px; border-radius: 5px; font-size: 10.5px; font-weight: 600; }
+  .rm-tier.alpha { color: var(--gold-soft); background: var(--gold-wash); }
+  .rm-tier.delta { color: var(--blue); background: var(--blue-dim); }
+  .rm-tier.removed { color: var(--red); background: var(--red-dim); }
+  .rm-sub {
+    display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 3px;
+    font-size: 12.5px; color: var(--faint); white-space: nowrap;
+  }
+  .rm-sep { color: var(--line-2); }
+  .r-eng-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--faint); }
+  .r-eng-dot.active   { background: var(--green); }
+  .r-eng-dot.slipping { background: var(--gold); }
+  .r-eng-dot.inactive { background: var(--red); }
+
+  .rm-due { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .rm-due b { font-size: 13.5px; font-weight: 600; color: var(--dim); }
+  .rm-due span { font-size: 11px; color: var(--faint); }
+  .rm-due.soon b    { color: var(--gold-soft); }
+  .rm-due.expired b { color: var(--red); }
+  .rm-due.none b    { color: var(--faint); font-weight: 500; }
+  html:not(.dark) .rm-due.soon b { color: var(--gold-dark); }
+  .rm-more { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--line); }
+
+  .r-t-head { padding: 12px 14px; }
+}
+
+/* Hoja de exportación (teletransportada a body) */
+.rm-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.6); }
+.rm-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 75;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 16px calc(18px + env(safe-area-inset-bottom));
+  background: var(--panel); border-top: 1px solid var(--line-2); border-radius: 20px 20px 0 0;
+}
+.rm-grab { display: block; margin: 0 auto 6px; }
+.rm-sheet-title { font-family: var(--disp); font-size: 22px; font-weight: 700; text-transform: uppercase; color: var(--text); }
+.rm-sheet-sub { font-size: 13px; color: var(--faint); margin: -4px 0 6px; }
+.rm-exp {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 10px 14px;
+  border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel-2);
+  color: var(--text); font-family: var(--ui); text-align: left; cursor: pointer;
+}
+.rm-exp.primary { border-color: var(--gold-ring); background: var(--gold-wash); }
+.rm-exp:disabled { opacity: .5; cursor: not-allowed; }
+.rm-exp .gold  { color: var(--gold); }
+.rm-exp .green { color: var(--green); }
+.rm-exp .dim   { color: var(--dim); }
+.rm-exp-txt { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.rm-exp-txt b { font-size: 14.5px; font-weight: 600; }
+.rm-exp-txt span { font-size: 12px; color: var(--faint); }
+.rm-exp-dl { color: var(--faint); }
+.rm-fade-enter-active, .rm-fade-leave-active { transition: opacity .2s; }
+.rm-fade-enter-from, .rm-fade-leave-to { opacity: 0; }
+.rm-sheet-enter-active, .rm-sheet-leave-active { transition: transform .26s cubic-bezier(.2,.8,.2,1); }
+.rm-sheet-enter-from, .rm-sheet-leave-to { transform: translateY(100%); }
 </style>

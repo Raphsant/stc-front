@@ -617,6 +617,11 @@ html:not(.dark) .stc-pill {
   background: var(--gold-wash);
 }
 
+/* Los modales y slideovers de Nuxt UI no fijan z-index (se apilan por orden
+   en el DOM), así que la píldora (z 60) quedaba por encima. Se elevan aquí. */
+body > [data-slot="overlay"],
+body > [data-slot="content"][role="dialog"] { z-index: 80; }
+
 /* Solo móvil: estas reglas no están en una capa, así que `md:hidden` no basta. */
 @media (min-width: 768px) {
   .stc-pill, .stc-sheet, .stc-sheet-backdrop { display: none; }

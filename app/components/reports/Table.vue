@@ -49,6 +49,38 @@ function place(r: ReportRow) {
   return { main: l.city ?? l.region ?? countryName(l.country), sub: [l.city ? l.region : null, countryName(l.country)].filter(Boolean).join(', '), flag: countryFlag(l.country) }
 }
 
+// ── Móvil: scroll infinito de 30 en 30 ──
+const MOBILE_STEP = 30
+const mobileLimit = ref(MOBILE_STEP)
+const mobileRows = computed(() => props.rows.slice(0, mobileLimit.value))
+watch(() => props.rows, () => { mobileLimit.value = MOBILE_STEP })
+function loadMore() {
+  if (mobileLimit.value < props.rows.length) mobileLimit.value += MOBILE_STEP
+}
+// El centinela se vuelve a montar tras cada carga (key = límite) para que
+// el observer dispare otra vez si sigue visible.
+const sentinel = ref<HTMLElement | null>(null)
+let io: IntersectionObserver | null = null
+onMounted(() => {
+  io = new IntersectionObserver(
+    entries => { if (entries[0]?.isIntersecting) loadMore() },
+    { root: document.querySelector('.stc-scroll'), rootMargin: '400px 0px' },
+  )
+  watch(sentinel, (el, old) => {
+    if (old) io?.unobserve(old)
+    if (el) io?.observe(el)
+  }, { immediate: true })
+})
+onBeforeUnmount(() => io?.disconnect())
+
+// "23 d", "Hoy", "-5 d" para la columna de vencimiento.
+function shortExpiry(r: ReportRow) {
+  const d = r.membership.daysLeft
+  if (d === null) return '—'
+  if (d === 0) return 'Hoy'
+  return `${d} d`
+}
+
 function expiry(r: ReportRow) {
   const d = r.membership.daysLeft
   if (d === null) return { cls: 'none', text: 'Sin dato', date: '' }
@@ -111,7 +143,37 @@ function expiry(r: ReportRow) {
       </button>
     </div>
 
-    <div v-else :class="{ 'r-stale': loading }">
+    <!-- Móvil (<768px): lista compacta con scroll infinito -->
+    <template v-else>
+    <div class="rm-list" :class="{ 'r-stale': loading }">
+      <NuxtLink v-for="r in mobileRows" :key="r._id" :to="`/discord-users/${r._id}`" class="rm-row">
+        <div class="r-av rm-av" :style="r.avatarUrl ? {} : { background: avatarGrad(r.username) }">
+          <img v-if="r.avatarUrl" :src="r.avatarUrl" alt="" loading="lazy">
+          <template v-else>{{ initial(r.username) }}</template>
+        </div>
+        <div class="rm-body">
+          <div class="rm-name">
+            <span class="truncate">{{ r.username }}</span>
+            <span v-if="r.tier !== 'none'" class="rm-tier" :class="r.tier">{{ TIER_LABELS[r.tier] }}</span>
+            <span v-if="r.memberStatus === 'removed'" class="rm-tier removed">Eliminado</span>
+          </div>
+          <div class="rm-sub">
+            <span class="r-eng-dot" :class="r.engagement" />
+            <span>{{ ENGAGEMENT_LABELS[r.engagement] }}</span>
+            <template v-if="place(r)"><span class="rm-sep">·</span><span class="truncate">{{ place(r)!.flag }} {{ place(r)!.main }}</span></template>
+          </div>
+        </div>
+        <div class="rm-due" :class="expiry(r).cls">
+          <b class="stc-mono">{{ shortExpiry(r) }}</b>
+          <span v-if="expiry(r).date" class="stc-mono">{{ expiry(r).date }}</span>
+        </div>
+      </NuxtLink>
+      <div v-if="mobileLimit < rows.length" :key="mobileLimit" ref="sentinel" class="rm-more">
+        <button type="button" class="stc-btn sm" @click="loadMore">Cargar más</button>
+      </div>
+    </div>
+
+    <div class="r-rows" :class="{ 'r-stale': loading }">
       <NuxtLink v-for="r in pageRows" :key="r._id" :to="`/discord-users/${r._id}`" class="r-grid r-row">
         <div class="r-c-user">
           <div class="r-av" :style="r.avatarUrl ? {} : { background: avatarGrad(r.username) }">
@@ -153,6 +215,7 @@ function expiry(r: ReportRow) {
         </div>
       </NuxtLink>
     </div>
+    </template>
 
     <footer v-if="rows.length > PAGE_SIZE" class="r-pager">
       <button type="button" class="r-pbtn" :disabled="page === 1" aria-label="Página anterior" @click="go(page - 1)">

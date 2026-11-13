@@ -8,9 +8,12 @@ const { data: user, pending, error } = useFetch(`/api/discord-users/${userId}`)
 const { data: activity, pending: activityPending } = useFetch(`/api/discord-users/${userId}/activity`)
 const { data: watched, pending: watchedPending } = useFetch(`/api/discord-users/${userId}/watched`)
 // ClickFunnels call is slow-ish and optional — don't block the page on it.
-const { data: contact, pending: contactPending, error: contactError } = useFetch<any>(
+const { data: contact, status: contactStatus, error: contactError } = useFetch<any>(
   `/api/discord-users/${userId}/contact`, { lazy: true, server: false },
 )
+// Con server: false la petición queda 'idle' en el SSR y pasa a 'pending' al
+// hidratar; tratar ambos como carga evita que el servidor pinte "no vinculado".
+const contactPending = computed(() => contactStatus.value === 'idle' || contactStatus.value === 'pending')
 
 function formatAddress(a: any): string[] {
   if (!a) return []

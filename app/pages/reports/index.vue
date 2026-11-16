@@ -339,7 +339,7 @@ const EXPORT_FORMATS: { id: ExportFormat; label: string; hint: string; icon: str
       :ui="{ content: isPhone ? 'r-sheet-content r-sheet-bottom' : 'r-sheet-content r-sheet-right' }"
     >
       <template #content>
-        <div class="r-sheet">
+        <div v-sheet="isPhone ? () => { sheetOpen = false } : null" class="r-sheet">
           <header class="r-sheet-head">
             <span v-if="isPhone" class="r-sheet-grab" aria-hidden="true" />
             <h3 class="r-bd-title"><UIcon name="i-lucide-filter" class="w-4 h-4" />Filtros</h3>
@@ -368,7 +368,7 @@ const EXPORT_FORMATS: { id: ExportFormat; label: string; hint: string; icon: str
         <div v-if="exportOpen" class="rm-backdrop" @click="exportOpen = false" />
       </Transition>
       <Transition name="rm-sheet">
-        <div v-if="exportOpen" class="rm-sheet" role="dialog" aria-label="Exportar reporte">
+        <div v-if="exportOpen" v-sheet="() => { exportOpen = false }" class="rm-sheet" role="dialog" aria-label="Exportar reporte">
           <span class="r-sheet-grab rm-grab" aria-hidden="true" />
           <div class="rm-sheet-title">Exportar reporte</div>
           <div class="rm-sheet-sub">{{ n(total) }} {{ total === 1 ? 'usuario' : 'usuarios' }} · {{ title }}</div>

@@ -203,7 +203,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <div v-if="isMoreOpen" class="stc-sheet-backdrop md:hidden" @click="isMoreOpen = false" />
     </Transition>
     <Transition name="stc-sheet">
-      <div v-if="isMoreOpen" class="stc-sheet md:hidden" role="dialog" aria-label="Más opciones">
+      <div v-if="isMoreOpen" v-sheet="() => { isMoreOpen = false }" class="stc-sheet md:hidden" role="dialog" aria-label="Más opciones">
         <div class="stc-sheet-grip" />
 
         <div class="stc-eyebrow" style="padding:0 4px; margin-bottom:10px">Más</div>

@@ -404,7 +404,7 @@ async function markFromDetail(entry: FollowUpEntry) {
           <div v-if="detail" class="fm-backdrop" @click="detailId = null" />
         </Transition>
         <Transition name="fm-sheet">
-          <div v-if="detail" class="fm-sheet" role="dialog" :aria-label="`Seguimiento de ${displayName(detail)}`">
+          <div v-if="detail" v-sheet="() => { detailId = null }" class="fm-sheet" role="dialog" :aria-label="`Seguimiento de ${displayName(detail)}`">
             <span class="fm-grip" aria-hidden="true" />
             <div class="fm-sheet-body">
               <div class="fm-d-head">

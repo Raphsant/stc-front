@@ -898,7 +898,7 @@ watch(filteredRows, () => { openSwipeId.value = null })
         <div v-if="sheetOpen" class="um-backdrop" @click="sheetOpen = false" />
       </Transition>
       <Transition name="um-sheet">
-        <div v-if="sheetOpen" class="um-sheet" role="dialog" aria-label="Filtros">
+        <div v-if="sheetOpen" v-sheet="() => { sheetOpen = false }" class="um-sheet" role="dialog" aria-label="Filtros">
           <div class="um-grip" />
           <div class="um-sheet-head">
             <span>Filtros</span>

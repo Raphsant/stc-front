@@ -630,6 +630,24 @@ html:not(.dark) .stc-pill {
   background: var(--gold-wash);
 }
 
+/* ─── Hojas inferiores: gesto y bloqueo de fondo (v-sheet) ─── */
+/* Con una hoja abierta, la página de detrás no se desplaza ni rebota. */
+html.stc-sheet-open,
+html.stc-sheet-open body { overflow: hidden; overscroll-behavior: none; }
+/* Solo el scroll principal de la página: las hojas usan .stc-scroll por dentro. */
+html.stc-sheet-open main > .stc-scroll { overflow: hidden; }
+/* El fondo oscuro y los tiradores no inician scroll; el contenido de la hoja
+   no encadena su scroll con la página. */
+.stc-sheet-backdrop, .um-backdrop, .rm-backdrop, .fm-backdrop { touch-action: none; }
+.stc-sheet, .um-sheet, .rm-sheet, .fm-sheet { overscroll-behavior: contain; touch-action: pan-y; }
+.stc-sheet-grip, .um-grip, .rm-grab, .fm-grip, .r-sheet-grab,
+.um-sheet-head, .r-sheet-head { touch-action: none; cursor: grab; }
+/* Zona de agarre más alta que el tirador visible (4px) */
+.stc-sheet-grip, .um-grip, .rm-grab, .fm-grip { position: relative; }
+.stc-sheet-grip::before, .um-grip::before, .rm-grab::before, .fm-grip::before {
+  content: ''; position: absolute; inset: -12px -60px;
+}
+
 /* Los modales y slideovers de Nuxt UI no fijan z-index (se apilan por orden
    en el DOM), así que la píldora (z 60) quedaba por encima. Se elevan aquí. */
 body > [data-slot="overlay"],

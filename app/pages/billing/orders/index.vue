@@ -88,13 +88,19 @@ const hasNext = computed(() => (data.value?.length ?? 0) > PAGE_SIZE)
           <span class="stc-eyebrow bo-col-date">Fecha</span>
         </div>
 
-        <div v-for="r in rows" :key="r.order.id" class="bo-trow bo-grid" :class="{ dim: pending }">
-          <BillingCustomer :customer="r.customer" class="bo-cust" />
+        <div
+          v-for="r in rows"
+          :key="r.order.id"
+          class="bo-trow bo-grid"
+          :class="{ dim: pending }"
+          @click="navigateTo(`/billing/orders/${r.order.id}`)"
+        >
+          <BillingCustomer :customer="r.customer" class="bo-cust" @click.stop />
 
-          <div class="min-w-0 bo-svc">
+          <NuxtLink :to="`/billing/orders/${r.order.id}`" class="min-w-0 bo-svc" @click.stop>
             <span class="bo-svc-name">{{ r.service.name }}</span>
-            <span class="bo-svc-sub">{{ r.price.nickname || formatInterval(r.price.interval, r.price.intervalCount) }}</span>
-          </div>
+            <span class="bo-svc-sub"><span class="stc-mono">#{{ shortId(r.order.id) }}</span> · {{ r.price.nickname || formatInterval(r.price.interval, r.price.intervalCount) }}</span>
+          </NuxtLink>
 
           <div class="bo-total">
             <span class="stc-mono">{{ formatMoney(r.order.total, r.order.currency) }}</span>
@@ -145,12 +151,14 @@ const hasNext = computed(() => (data.value?.length ?? 0) > PAGE_SIZE)
   gap: 14px;
 }
 .bo-thead { padding: 14px 22px; border-bottom: 1px solid var(--line); }
-.bo-trow { padding: 12px 22px; border-bottom: 1px solid var(--line); transition: background .14s, opacity .14s; }
+.bo-trow { padding: 12px 22px; border-bottom: 1px solid var(--line); transition: background .14s, opacity .14s; cursor: pointer; }
 .bo-trow:last-of-type { border-bottom: none; }
 .bo-trow:hover { background: rgba(255,255,255,.022); }
 html:not(.dark) .bo-trow:hover { background: rgba(0,0,0,.02); }
 .bo-trow.dim { opacity: .55; }
 
+.bo-svc { display: block; text-decoration: none; }
+.bo-trow:hover .bo-svc-name { color: var(--gold-soft); }
 .bo-svc-name { display: block; font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bo-svc-sub  { display: block; font-size: 11.5px; color: var(--faint); margin-top: 1px; }
 

@@ -29,16 +29,6 @@ const { data, pending, error, refresh } = useFetch<any[]>('/api/billing/subscrip
 
 const rows = computed(() => (data.value ?? []).slice(0, PAGE_SIZE))
 const hasNext = computed(() => (data.value?.length ?? 0) > PAGE_SIZE)
-
-// One line on what happens next with this subscription, most important fact first.
-function nextStep(s: any): { text: string; tone: 'red' | 'gold' | 'dim' } {
-  if (s.revokedAt) return { text: `Revocada ${formatBillingDate(s.revokedAt)}${s.revokedReason ? ` · ${s.revokedReason}` : ''}`, tone: 'red' }
-  if (s.endedAt) return { text: `Terminó ${formatBillingDate(s.endedAt)}`, tone: 'dim' }
-  if (s.graceEndsAt) return { text: `Gracia hasta ${formatBillingDateTime(s.graceEndsAt)}`, tone: 'red' }
-  if (s.cancelAtPeriodEnd || s.status === 'canceled') return { text: `No renueva · acceso hasta ${formatBillingDate(s.paidThrough)}`, tone: 'gold' }
-  if (s.status === 'active' && s.currentPeriodEnd) return { text: `Renueva ${formatBillingDate(s.currentPeriodEnd)}`, tone: 'dim' }
-  return { text: '—', tone: 'dim' }
-}
 </script>
 
 <template>
@@ -121,7 +111,7 @@ function nextStep(s: any): { text: string; tone: 'red' | 'gold' | 'dim' } {
           </div>
 
           <div class="bs-col-next min-w-0">
-            <span class="bs-next" :class="nextStep(r.subscription).tone">{{ nextStep(r.subscription).text }}</span>
+            <span class="bs-next" :class="subscriptionNextStep(r.subscription).tone">{{ subscriptionNextStep(r.subscription).text }}</span>
           </div>
 
           <div class="bs-col-prov">

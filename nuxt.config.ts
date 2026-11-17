@@ -45,6 +45,9 @@ export default defineNuxtConfig({
         anthropicApiKey: process.env.NUXT_ANTHROPIC_API_KEY,
         cfToken: process.env.CF2_TOKEN,
         cfWorkspaceId: process.env.WORKSPACE_ID,
+        // stc-billing admin API (staff screens /billing/*). Set NUXT_BILLING_API_URL and NUXT_BILLING_ADMIN_API_KEY.
+        billingApiUrl: '',
+        billingAdminApiKey: '',
         public: {
             appVersion: pkg.version
         }

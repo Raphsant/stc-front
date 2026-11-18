@@ -21,7 +21,6 @@ const customInterval = ref<'month' | 'year'>('month')
 const customCount = ref(2)
 const amountText = ref('')
 const nickname = ref('')
-const lifetime = ref(true)
 const days = ref(30)
 const publishNow = ref(false)
 const saving = ref(false)
@@ -33,7 +32,6 @@ watch(open, (v) => {
   preset.value = PRESETS.find(p => !have.has(`${p.interval}:${p.count}`))?.key ?? 'custom'
   amountText.value = ''
   nickname.value = ''
-  lifetime.value = true
   days.value = 30
   publishNow.value = false
 })
@@ -71,7 +69,7 @@ const duplicate = computed(() =>
 const problem = computed(() => {
   if (!amount.value) return 'Escribe el monto en dólares, por ejemplo 237.60.'
   if (recurring.value && (interval.value.count < 1 || interval.value.count > 36)) return 'La duración va de 1 a 36.'
-  if (!recurring.value && !lifetime.value && !(days.value >= 1 && days.value <= 3650)) return 'Los días de acceso van de 1 a 3650.'
+  if (!recurring.value && !(Number.isInteger(days.value) && days.value >= 1 && days.value <= 3650)) return 'Los días de acceso van de 1 a 3650.'
   return null
 })
 
@@ -89,13 +87,13 @@ async function save() {
       body.interval = interval.value.interval
       body.intervalCount = interval.value.count
     } else {
-      body.accessDurationDays = lifetime.value ? null : Number(days.value)
+      body.accessDurationDays = Number(days.value)
     }
     const result = await $fetch<any>(`/api/billing/products/${props.product.id}/variants`, { method: 'POST', body })
     const issue = syncProblems(result.sync)
     toast.add(issue
       ? { title: 'Variante guardada, pero no se sincronizó', description: issue, color: 'warning' }
-      : { title: 'Variante creada', description: publishNow.value ? 'Ya está a la venta.' : 'Quedó como borrador.', color: 'success' })
+      : { title: recurring.value ? 'Variante creada' : 'Precio creado', description: publishNow.value ? 'Ya está a la venta.' : 'Quedó como borrador.', color: 'success' })
     emit('saved', result)
     open.value = false
   } catch (e: any) {
@@ -112,7 +110,7 @@ async function save() {
       <form class="vm" @submit.prevent="save">
         <div class="vm-head">
           <span class="vm-glyph"><UIcon name="i-lucide-plus" class="w-5 h-5" /></span>
-          <h3 class="vm-title">Añadir variante</h3>
+          <h3 class="vm-title">{{ recurring ? 'Añadir variante' : 'Añadir precio' }}</h3>
         </div>
 
         <template v-if="recurring">
@@ -141,11 +139,11 @@ async function save() {
         </template>
 
         <template v-else>
-          <span class="vm-label">Acceso que da la compra</span>
-          <label class="vm-check"><input v-model="lifetime" type="radio" :value="true"> Para siempre</label>
-          <label class="vm-check">
-            <input v-model="lifetime" type="radio" :value="false"> Por
-            <input v-model.number="days" type="number" min="1" max="3650" class="stc-input vm-num" :disabled="lifetime" aria-label="Días"> días
+          <label class="vm-field">
+            <span class="vm-label">Días de acceso <small>contados desde el pago; luego se quita el rol</small></span>
+            <span class="vm-custom">
+              <input v-model.number="days" type="number" min="1" max="3650" class="stc-input vm-num"> días
+            </span>
           </label>
         </template>
 
@@ -166,7 +164,7 @@ async function save() {
         </label>
 
         <label class="vm-field">
-          <span class="vm-label">Nombre visible <small>opcional; si no, «{{ recurring ? variantLabel({ kind: 'recurring', interval: interval.interval, intervalCount: interval.count }) : (lifetime ? 'De por vida' : `${days} días`) }}»</small></span>
+          <span class="vm-label">Nombre visible <small>opcional; si no, «{{ recurring ? variantLabel({ kind: 'recurring', interval: interval.interval, intervalCount: interval.count }) : `${days} días` }}»</small></span>
           <input v-model="nickname" class="stc-input" maxlength="80">
         </label>
 
@@ -181,7 +179,7 @@ async function save() {
         <div class="vm-foot">
           <button type="button" class="stc-btn" :disabled="saving" @click="open = false">Cancelar</button>
           <button type="submit" class="stc-btn gold" :disabled="saving || !!problem">
-            {{ saving ? 'Guardando…' : 'Crear variante' }}
+            {{ saving ? 'Guardando…' : recurring ? 'Crear variante' : 'Crear precio' }}
           </button>
         </div>
       </form>

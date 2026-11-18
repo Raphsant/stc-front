@@ -12,10 +12,24 @@ const form = ref<ProductFormValue>({
 })
 const formRef = ref<{ problem: string | null } | null>(null)
 const saving = ref(false)
+
+// One-time products (events) have a single price and N days of access, set here
+// so the event is complete in one step. Subscriptions add variants afterwards.
+const oneTime = computed(() => form.value.kind === 'one_time')
+const amountText = ref('')
+const days = ref<number>(7)
+const amount = computed(() => parseMoneyInput(amountText.value))
+const priceProblem = computed(() => {
+  if (!oneTime.value) return null
+  if (!amount.value) return 'Escribe el precio en dólares, por ejemplo 49.00.'
+  if (!Number.isInteger(days.value) || days.value < 1 || days.value > 3650) return 'Los días de acceso van de 1 a 3650.'
+  return null
+})
+const problem = computed(() => formRef.value?.problem || priceProblem.value)
 const { data: tagSuggestions } = useFetch<string[]>('/api/billing/products/tags', { default: () => [] })
 
 async function create() {
-  if (formRef.value?.problem || saving.value) return
+  if (problem.value || saving.value) return
   saving.value = true
   try {
     const f = form.value
@@ -31,10 +45,28 @@ async function create() {
         active: false,
       },
     })
-    const issue = syncProblems(result.sync)
+    let issue = syncProblems(result.sync)
+    if (oneTime.value) {
+      try {
+        const price = await $fetch<any>(`/api/billing/products/${result.service.id}/variants`, {
+          method: 'POST',
+          body: { amount: amount.value, currency: 'USD', accessDurationDays: days.value, active: false },
+        })
+        issue = issue || syncProblems(price.sync)
+      } catch (e: any) {
+        // The product exists; its page offers «Añadir precio».
+        toast.add({ title: 'Producto creado, pero sin precio', description: e?.data?.message || e?.statusMessage || e?.message || '', color: 'warning' })
+        await navigateTo(`/billing/products/${result.service.id}`)
+        return
+      }
+    }
     toast.add(issue
       ? { title: 'Producto guardado, pero no se sincronizó', description: issue, color: 'warning' }
-      : { title: 'Producto creado como borrador', description: 'Añade sus variantes y publícalo cuando esté listo.', color: 'success' })
+      : {
+          title: 'Producto creado como borrador',
+          description: oneTime.value ? 'Revisa el precio y publícalo cuando esté listo.' : 'Añade sus variantes y publícalo cuando esté listo.',
+          color: 'success',
+        })
     await navigateTo(`/billing/products/${result.service.id}`)
   } catch (e: any) {
     toast.add({ title: 'No se pudo crear el producto', description: e?.data?.message || e?.statusMessage || e?.message || '', color: 'error' })
@@ -67,10 +99,20 @@ async function create() {
 
     <form v-else class="stc-panel np-p" @submit.prevent="create">
       <BillingProductForm ref="formRef" v-model="form" mode="create" :suggestions="tagSuggestions" :disabled="saving" />
+      <div v-if="oneTime" class="np-price">
+        <label class="np-field">
+          <span class="np-label">Precio (USD)</span>
+          <span class="np-amount">$ <input v-model="amountText" class="stc-input stc-mono" inputmode="decimal" placeholder="49.00" :disabled="saving"></span>
+        </label>
+        <label class="np-field">
+          <span class="np-label">Días de acceso <small>desde el pago; luego se quita el rol</small></span>
+          <span class="np-amount"><input v-model.number="days" type="number" min="1" max="3650" class="stc-input stc-mono" :disabled="saving"> días</span>
+        </label>
+      </div>
       <div class="np-foot">
-        <span v-if="formRef?.problem && form.name" class="np-err">{{ formRef.problem }}</span>
+        <span v-if="problem && form.name" class="np-err">{{ problem }}</span>
         <NuxtLink to="/billing/products" class="stc-btn">Cancelar</NuxtLink>
-        <button type="submit" class="stc-btn gold" :disabled="saving || !!formRef?.problem">
+        <button type="submit" class="stc-btn gold" :disabled="saving || !!problem">
           {{ saving ? 'Creando…' : 'Crear borrador' }}
         </button>
       </div>
@@ -82,5 +124,12 @@ async function create() {
 .np-page { display: flex; flex-direction: column; gap: 18px; max-width: 820px; width: 100%; }
 .np-p { padding: 22px; }
 .np-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.np-price { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line-2); }
+@media (max-width: 640px) { .np-price { grid-template-columns: minmax(0, 1fr); } }
+.np-field { display: flex; flex-direction: column; gap: 7px; }
+.np-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.np-label small { font-weight: 400; color: var(--faint); margin-left: 6px; }
+.np-amount { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+.np-amount .stc-input { max-width: 160px; }
 .np-err { font-size: 12.5px; color: var(--red); margin-right: auto; }
 </style>

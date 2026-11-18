@@ -89,7 +89,7 @@ defineExpose({ problem })
       <span class="pf-hint">
         <template v-if="kindLocked">El tipo no se puede cambiar porque el producto ya tiene variantes.</template>
         <template v-else-if="form.kind === 'recurring'">Se renueva sola. Variantes: 1, 3, 6 o 12 meses.</template>
-        <template v-else>Un solo cargo. El pago único todavía no se puede comprar en el checkout.</template>
+        <template v-else>Para eventos: un solo precio y N días de acceso. Todavía no se puede comprar en el checkout.</template>
       </span>
     </div>
 
@@ -106,7 +106,7 @@ defineExpose({ problem })
           <small>
             {{ form.kind === 'recurring'
               ? 'El rol se da al pagar y se quita cuando la suscripción deja de estar pagada.'
-              : 'El rol dura los días que diga cada variante (o para siempre).' }}
+              : 'El rol se da al pagar y se quita cuando pasan los días de acceso.' }}
           </small>
         </span>
       </label>

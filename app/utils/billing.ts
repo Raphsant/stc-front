@@ -159,11 +159,14 @@ export function productStatus(s: any): StatusMeta {
     return { label: 'Borrador', tone: 'neutral' }
 }
 
-/** Variant state: on sale, draft, pending price change, or replaced. */
-export function variantStatus(p: any): StatusMeta {
+/**
+ * Variant state: on sale, draft, pending price change, or replaced. `pendingSwap`:
+ * this is a new price waiting to replace one that is still current.
+ */
+export function variantStatus(p: any, pendingSwap = false): StatusMeta {
     if (p?.retiredAt) return { label: 'Reemplazada', tone: 'outline' }
     if (p?.active) return { label: 'A la venta', tone: 'green' }
-    if (p?.replacesPriceId) return { label: 'Cambio pendiente', tone: 'gold' }
+    if (pendingSwap) return { label: 'Cambio pendiente', tone: 'gold' }
     return { label: 'Borrador', tone: 'neutral' }
 }
 

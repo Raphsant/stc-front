@@ -108,6 +108,8 @@ const resetDetails = () => { if (p.value) form.value = fromProduct(p.value) }
 // ── Variantes ──────────────────────────────────────────────────────────────
 
 const addOpen = ref(false)
+/** Events and other one-time products: a single price with N days of access. */
+const oneTime = computed(() => p.value?.kind === 'one_time')
 
 const toggleVariant = (v: any) =>
   run(`v-${v.id}`, v.active ? 'Variante retirada de la venta' : 'Variante a la venta', () => patchVariant(v, { active: !v.active }))
@@ -116,13 +118,30 @@ const toggleVariant = (v: any) =>
 const replacing = ref<any | null>(null)
 const replaceText = ref('')
 const replaceAmount = computed(() => parseMoneyInput(replaceText.value))
+const replaceDays = ref<number | null>(null)
 const replaceOpen = computed({ get: () => !!replacing.value, set: (v) => { if (!v) replacing.value = null } })
-function openReplace(v: any) { replacing.value = v; replaceText.value = centsToInput(v.amount) }
+function openReplace(v: any) {
+  replacing.value = v
+  replaceText.value = centsToInput(v.amount)
+  replaceDays.value = v.accessDurationDays ?? null
+}
+const replaceDaysValid = computed(() =>
+  replacing.value?.kind !== 'one_time' || (Number.isInteger(replaceDays.value) && replaceDays.value! >= 1 && replaceDays.value! <= 3650))
+/** What actually changes; empty when nothing does. */
+const replaceBody = computed(() => {
+  const v = replacing.value
+  if (!v || !replaceAmount.value || !replaceDaysValid.value) return null
+  const body: Record<string, number> = {}
+  if (replaceAmount.value !== v.amount) body.amount = replaceAmount.value
+  if (v.kind === 'one_time' && replaceDays.value !== v.accessDurationDays) body.accessDurationDays = replaceDays.value!
+  return Object.keys(body).length ? body : null
+})
 async function doReplace() {
   const v = replacing.value
-  if (!v || !replaceAmount.value || replaceAmount.value === v.amount) return
+  const body = replaceBody.value
+  if (!v || !body) return
   const result = await run(`v-${v.id}`, 'Precio cambiado', () =>
-    $fetch<any>(`/api/billing/products/variants/${v.id}/replace`, { method: 'POST', body: { amount: replaceAmount.value } }))
+    $fetch<any>(`/api/billing/products/variants/${v.id}/replace`, { method: 'POST', body }))
   if (result) {
     replacing.value = null
     if (!result.swapped && v.active) {
@@ -170,6 +189,11 @@ function badgeNote(v: any) {
   if (v.badgeMode === 'hidden') return v.savingsPercent ? `Oculta (calculada: ${v.savingsPercent}%)` : 'Oculta'
   if (v.badgeMode === 'custom') return v.savingsPercent ? `Personalizada · calculada: ${v.savingsPercent}%` : 'Personalizada'
   return null
+}
+
+/** A new price waiting to replace one that is still current (its Stripe push failed). */
+function pendingSwap(v: any) {
+  return !!v.replacesPriceId && !v.active && variants.value.some(x => x.id === v.replacesPriceId && !x.retiredAt)
 }
 
 function replacedBy(v: any) {
@@ -261,28 +285,28 @@ function replacedBy(v: any) {
       <section class="stc-panel pd-table" style="overflow:hidden">
         <div class="stc-panel-head">
           <div class="stc-panel-title">
-            <UIcon name="i-lucide-layers" class="w-5 h-5" />
-            Variantes
-            <span class="pd-count">{{ current.length }}</span>
+            <UIcon :name="oneTime ? 'i-lucide-ticket' : 'i-lucide-layers'" class="w-5 h-5" />
+            {{ oneTime ? 'Precio y acceso' : 'Variantes' }}
+            <span v-if="!oneTime" class="pd-count">{{ current.length }}</span>
           </div>
-          <button v-if="editable" class="stc-btn gold-soft sm" @click="addOpen = true">
-            <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" /> Añadir variante
+          <button v-if="editable && (!oneTime || !current.length)" class="stc-btn gold-soft sm" @click="addOpen = true">
+            <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" /> {{ oneTime ? 'Añadir precio' : 'Añadir variante' }}
           </button>
         </div>
 
         <div v-if="!current.length" class="stc-empty" style="padding:36px 20px">
           <UIcon name="i-lucide-layers" />
           <p>
-            Sin variantes todavía.
-            <template v-if="editable">{{ p.kind === 'recurring' ? 'Añade la de 1 mes primero: las demás calculan su ahorro contra ella.' : 'Añade una opción de compra.' }}</template>
+            <template v-if="oneTime">Sin precio todavía.<template v-if="editable"> Añade el precio y los días de acceso.</template></template>
+            <template v-else>Sin variantes todavía.<template v-if="editable"> Añade la de 1 mes primero: las demás calculan su ahorro contra ella.</template></template>
           </p>
         </div>
 
         <template v-else>
           <div class="pd-thead pd-grid">
-            <span class="stc-eyebrow">Variante</span>
+            <span class="stc-eyebrow">{{ oneTime ? 'Acceso' : 'Variante' }}</span>
             <span class="stc-eyebrow" style="text-align:right">Monto</span>
-            <span class="stc-eyebrow">Etiqueta</span>
+            <span class="stc-eyebrow">{{ oneTime ? '' : 'Etiqueta' }}</span>
             <span class="stc-eyebrow">Estado</span>
             <span class="stc-eyebrow pd-col-subs" style="text-align:right">Suscr.</span>
             <span class="stc-eyebrow pd-col-sync">Stripe</span>
@@ -292,21 +316,22 @@ function replacedBy(v: any) {
             <div class="min-w-0 pd-v-name">
               <div class="pd-name">{{ variantLabel(v) }}</div>
               <div class="pd-sub">
-                {{ v.kind === 'recurring' ? cadenceLabel(v.interval, v.intervalCount) : (v.accessDurationDays ? `${v.accessDurationDays} días de acceso` : 'Acceso de por vida') }}
+                {{ v.kind === 'recurring' ? cadenceLabel(v.interval, v.intervalCount) : (v.accessDurationDays ? 'de acceso, desde el pago' : 'Acceso de por vida') }}
               </div>
             </div>
             <div class="pd-amt">
               <span class="stc-mono">{{ formatMoney(v.amount, v.currency) }}</span>
               <span v-if="v.perMonth" class="pd-per stc-mono">{{ formatMoney(v.perMonth, v.currency) }}/mes</span>
             </div>
-            <div class="pd-badge">
+            <div v-if="oneTime" class="pd-badge" />
+            <div v-else class="pd-badge">
               <span v-if="v.badge" class="stc-badge solid">{{ v.badge }}</span>
               <span v-else class="pd-none">—</span>
               <span v-if="badgeNote(v)" class="pd-badge-note">{{ badgeNote(v) }}</span>
             </div>
             <div class="pd-status">
-              <span class="stc-badge" :class="variantStatus(v).tone">{{ variantStatus(v).label }}</span>
-              <span v-if="v.replacesPriceId && !v.active" class="pd-badge-note">Al ponerla a la venta reemplaza al precio actual</span>
+              <span class="stc-badge" :class="variantStatus(v, pendingSwap(v)).tone">{{ variantStatus(v, pendingSwap(v)).label }}</span>
+              <span v-if="pendingSwap(v)" class="pd-badge-note">Al ponerla a la venta reemplaza al precio actual</span>
             </div>
             <div class="pd-col-subs pd-subs stc-mono">{{ v.activeSubscriptions }}</div>
             <div class="pd-col-sync">
@@ -318,10 +343,10 @@ function replacedBy(v: any) {
               <button class="pd-icon" :title="v.active ? 'Quitar de la venta' : 'Poner a la venta'" :aria-label="v.active ? 'Quitar de la venta' : 'Poner a la venta'" :disabled="!!busy" @click="toggleVariant(v)">
                 <UIcon :name="v.active ? 'i-lucide-pause' : 'i-lucide-play'" class="w-4 h-4" />
               </button>
-              <button class="pd-icon" title="Cambiar precio" aria-label="Cambiar precio" :disabled="!!busy || !!replacedBy(v)" @click="openReplace(v)">
+              <button class="pd-icon" :title="oneTime ? 'Cambiar precio o días' : 'Cambiar precio'" :aria-label="oneTime ? 'Cambiar precio o días' : 'Cambiar precio'" :disabled="!!busy || !!replacedBy(v)" @click="openReplace(v)">
                 <UIcon name="i-lucide-dollar-sign" class="w-4 h-4" />
               </button>
-              <button class="pd-icon" title="Nombre y etiqueta" aria-label="Nombre y etiqueta" :disabled="!!busy" @click="openEdit(v)">
+              <button v-if="!oneTime" class="pd-icon" title="Nombre y etiqueta" aria-label="Nombre y etiqueta" :disabled="!!busy" @click="openEdit(v)">
                 <UIcon name="i-lucide-tag" class="w-4 h-4" />
               </button>
               <button
@@ -338,14 +363,15 @@ function replacedBy(v: any) {
           <button class="pd-retired-toggle" :aria-expanded="showRetired" @click="showRetired = !showRetired">
             <UIcon :name="showRetired ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="w-4 h-4" />
             Precios anteriores ({{ retired.length }})
-            <span class="pd-retired-sub">· {{ retired.reduce((s, v) => s + v.activeSubscriptions, 0) }} suscriptores siguen pagando el precio anterior</span>
+            <span v-if="!oneTime" class="pd-retired-sub">· {{ retired.reduce((s, v) => s + v.activeSubscriptions, 0) }} suscriptores siguen pagando el precio anterior</span>
+            <span v-else class="pd-retired-sub">· quienes compraron antes conservan sus días</span>
           </button>
           <div v-if="showRetired" class="pd-retired-list">
             <div v-for="v in retired" :key="v.id" class="pd-retired-row">
               <span>{{ variantLabel(v) }}</span>
               <span class="stc-mono">{{ formatMoney(v.amount, v.currency) }}</span>
               <span>Retirado {{ formatBillingDate(v.retiredAt) }}</span>
-              <span class="stc-mono">{{ v.activeSubscriptions }} suscr.</span>
+              <span v-if="!oneTime" class="stc-mono">{{ v.activeSubscriptions }} suscr.</span>
             </div>
           </div>
         </div>
@@ -379,15 +405,21 @@ function replacedBy(v: any) {
           <form v-if="replacing" class="pm" @submit.prevent="doReplace">
             <div class="pm-head">
               <span class="pm-glyph"><UIcon name="i-lucide-dollar-sign" class="w-5 h-5" /></span>
-              <h3 class="pm-title">Cambiar precio · {{ variantLabel(replacing) }}</h3>
+              <h3 class="pm-title">{{ oneTime ? 'Cambiar precio o días' : `Cambiar precio · ${variantLabel(replacing)}` }}</h3>
             </div>
-            <p class="pm-p">
+            <p v-if="oneTime" class="pm-p">
+              Se crea un precio nuevo para las compras nuevas.
+              <template v-if="replacing.active">Sale a la venta en lugar del actual.</template>
+              <template v-else>Queda como borrador, igual que el actual.</template>
+              Quienes ya compraron conservan los <b>{{ replacing.accessDurationDays ?? '∞' }} días</b> que pagaron.
+            </p>
+            <p v-else class="pm-p">
               Stripe no permite editar un precio, así que se crea uno nuevo de
               <b>{{ formatInterval(replacing.interval, replacing.intervalCount).toLowerCase() }}</b>.
               <template v-if="replacing.active">Sale a la venta en lugar del actual.</template>
               <template v-else>Queda como borrador, igual que el actual.</template>
             </p>
-            <p v-if="replacing.activeSubscriptions" class="pm-p">
+            <p v-if="!oneTime && replacing.activeSubscriptions" class="pm-p">
               Los <b>{{ replacing.activeSubscriptions }}</b> suscriptores actuales siguen pagando
               <b>{{ formatMoney(replacing.amount, replacing.currency) }}</b>: el cambio solo aplica a compras nuevas.
             </p>
@@ -395,11 +427,16 @@ function replacedBy(v: any) {
               <span class="pm-label">Monto nuevo (USD)</span>
               <input v-model="replaceText" class="stc-input stc-mono" inputmode="decimal" autofocus>
             </label>
+            <label v-if="oneTime" class="pm-field">
+              <span class="pm-label">Días de acceso <small>contados desde el pago</small></span>
+              <input v-model.number="replaceDays" type="number" min="1" max="3650" class="stc-input stc-mono" style="max-width:140px">
+            </label>
             <p v-if="replaceText && !replaceAmount" class="pm-err">Escribe el monto en dólares, por ejemplo 237.60.</p>
+            <p v-else-if="!replaceDaysValid" class="pm-err">Los días de acceso van de 1 a 3650.</p>
             <div class="pm-foot">
               <button type="button" class="stc-btn" :disabled="!!busy" @click="replacing = null">Cancelar</button>
-              <button type="submit" class="stc-btn gold" :disabled="!!busy || !replaceAmount || replaceAmount === replacing.amount">
-                {{ busy ? 'Guardando…' : 'Cambiar precio' }}
+              <button type="submit" class="stc-btn gold" :disabled="!!busy || !replaceBody">
+                {{ busy ? 'Guardando…' : oneTime ? 'Guardar cambio' : 'Cambiar precio' }}
               </button>
             </div>
           </form>
@@ -445,7 +482,7 @@ function replacedBy(v: any) {
           <div v-if="deleting" class="pm">
             <div class="pm-head">
               <span class="pm-glyph danger"><UIcon name="i-lucide-trash-2" class="w-5 h-5" /></span>
-              <h3 class="pm-title">Eliminar variante</h3>
+              <h3 class="pm-title">{{ oneTime ? 'Eliminar precio' : 'Eliminar variante' }}</h3>
             </div>
             <p class="pm-p">
               Se elimina <b>{{ variantLabel(deleting) }} · {{ formatMoney(deleting.amount, deleting.currency) }}</b> y su precio en Stripe se archiva.

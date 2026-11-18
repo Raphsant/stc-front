@@ -19,6 +19,7 @@ const navItems = computed(() => [
   { label: 'Meetings',   icon: 'i-lucide-list',             to: '/meetings' },
   { label: 'Suscripciones', icon: 'i-lucide-repeat',        to: '/billing/subscriptions' },
   { label: 'Órdenes',    icon: 'i-lucide-receipt',          to: '/billing/orders' },
+  { label: 'Productos',  icon: 'i-lucide-package',          to: '/billing/products' },
   { label: 'Seguimientos', icon: 'i-lucide-clipboard-check', to: '/journal/follow-ups' },
   { label: 'Logs',       icon: 'i-lucide-file-text',        to: '/logs' },
   { label: 'Bot Status', icon: 'i-lucide-radio',            to: '/status' },

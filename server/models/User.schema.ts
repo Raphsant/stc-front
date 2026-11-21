@@ -16,7 +16,8 @@ export const User = defineMongooseModel({
     },
     role: {
       type: String,
-      enum: ['admin', 'superadmin'],
+      // What each role may see of the billing metrics: shared/permissions.ts.
+      enum: ['admin', 'finance', 'superadmin'],
       default: 'admin',
     },
     createdAt: {

@@ -1,0 +1,1825 @@
+{
+  "generatedAt": "2026-11-21T01:35:15.592Z",
+  "summary": {
+    "as_of": "2026-11-21T01:35:16.637Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "mrr": 35000,
+      "activeSubscribers": 6,
+      "atRiskMrr": 4900,
+      "atRiskSubscribers": 1,
+      "scheduledToCancelMrr": 7920,
+      "scheduledToCancelSubscribers": 1,
+      "importedWaiting": 1,
+      "importedWaitingMrr": 4900,
+      "byVariant": [
+        {
+          "priceId": "b6c16551-a37a-44fa-b70e-c1d8f57b5fb7",
+          "serviceId": "e8f9c107-c704-4259-a728-0245d9cee14c",
+          "serviceName": "Acceso grupo Delta",
+          "nickname": "Mensual",
+          "amount": 4900,
+          "interval": "month",
+          "intervalCount": 1,
+          "subscribers": 4,
+          "mrr": 19600
+        },
+        {
+          "priceId": "7c5509db-daeb-4e51-89ed-ee29fb775de5",
+          "serviceId": "e8f9c107-c704-4259-a728-0245d9cee14c",
+          "serviceName": "Acceso grupo Delta",
+          "nickname": "3 meses",
+          "amount": 23760,
+          "interval": "month",
+          "intervalCount": 3,
+          "subscribers": 1,
+          "mrr": 7920
+        },
+        {
+          "priceId": "c4bdfa0b-a38d-4918-816b-88dab6ac0c39",
+          "serviceId": "e8f9c107-c704-4259-a728-0245d9cee14c",
+          "serviceName": "Acceso grupo Delta",
+          "nickname": "6 meses",
+          "amount": 44880,
+          "interval": "month",
+          "intervalCount": 6,
+          "subscribers": 1,
+          "mrr": 7480
+        }
+      ],
+      "byProvider": [
+        {
+          "provider": "stripe",
+          "subscribers": 6,
+          "mrr": 35000
+        }
+      ],
+      "today": "2026-11-20",
+      "month": "2026-11",
+      "revenueToday": {
+        "gross": 0,
+        "payments": 0,
+        "refunds": 0,
+        "chargebacks": 0,
+        "net": 0
+      },
+      "revenueMonthToDate": {
+        "gross": 14700,
+        "payments": 3,
+        "refunds": 4900,
+        "chargebacks": 0,
+        "net": 9800
+      }
+    }
+  },
+  "mrrByDay": {
+    "as_of": "2026-11-21T01:35:16.642Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "from": "2026-09-11",
+      "to": "2026-11-20",
+      "bucket": "day",
+      "start": 0,
+      "end": 35000,
+      "movements": {
+        "new": 44800,
+        "migrated": 4900,
+        "reactivated": 0,
+        "churned": 14700,
+        "counts": {
+          "new": 8,
+          "migrated": 1,
+          "reactivated": 0,
+          "churned": 3
+        }
+      },
+      "buckets": [
+        {
+          "period": "2026-09-11",
+          "start": 0,
+          "end": 0,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-12",
+          "start": 0,
+          "end": 0,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-13",
+          "start": 0,
+          "end": 0,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-14",
+          "start": 0,
+          "end": 0,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-15",
+          "start": 0,
+          "end": 0,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-16",
+          "start": 0,
+          "end": 4900,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-17",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-18",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-19",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-20",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-21",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-22",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-23",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-24",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-25",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-26",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-27",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-28",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-29",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-09-30",
+          "start": 4900,
+          "end": 4900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-01",
+          "start": 4900,
+          "end": 12820,
+          "movements": {
+            "new": 7920,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-02",
+          "start": 12820,
+          "end": 12820,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-03",
+          "start": 12820,
+          "end": 12820,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-04",
+          "start": 12820,
+          "end": 12820,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-05",
+          "start": 12820,
+          "end": 12820,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-06",
+          "start": 12820,
+          "end": 17720,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-07",
+          "start": 17720,
+          "end": 17720,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-08",
+          "start": 17720,
+          "end": 17720,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-09",
+          "start": 17720,
+          "end": 17720,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-10",
+          "start": 17720,
+          "end": 17720,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-11",
+          "start": 17720,
+          "end": 22620,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-12",
+          "start": 22620,
+          "end": 22620,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-13",
+          "start": 22620,
+          "end": 27520,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-14",
+          "start": 27520,
+          "end": 27520,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-15",
+          "start": 27520,
+          "end": 27520,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-16",
+          "start": 27520,
+          "end": 27520,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-17",
+          "start": 27520,
+          "end": 27520,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-18",
+          "start": 27520,
+          "end": 27520,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-19",
+          "start": 27520,
+          "end": 32420,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-20",
+          "start": 32420,
+          "end": 32420,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-21",
+          "start": 32420,
+          "end": 32420,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-22",
+          "start": 32420,
+          "end": 32420,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-23",
+          "start": 32420,
+          "end": 32420,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-24",
+          "start": 32420,
+          "end": 32420,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-25",
+          "start": 32420,
+          "end": 32420,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-26",
+          "start": 32420,
+          "end": 39900,
+          "movements": {
+            "new": 7480,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-27",
+          "start": 39900,
+          "end": 39900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-28",
+          "start": 39900,
+          "end": 39900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-29",
+          "start": 39900,
+          "end": 39900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-30",
+          "start": 39900,
+          "end": 39900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10-31",
+          "start": 39900,
+          "end": 44800,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-01",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-02",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-03",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-04",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-05",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-06",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-07",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-08",
+          "start": 44800,
+          "end": 49700,
+          "movements": {
+            "new": 0,
+            "migrated": 4900,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 1,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-09",
+          "start": 49700,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 4900,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 1
+            }
+          }
+        },
+        {
+          "period": "2026-11-10",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-11",
+          "start": 44800,
+          "end": 44800,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-12",
+          "start": 44800,
+          "end": 39900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 4900,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 1
+            }
+          }
+        },
+        {
+          "period": "2026-11-13",
+          "start": 39900,
+          "end": 39900,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-14",
+          "start": 39900,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 4900,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 1
+            }
+          }
+        },
+        {
+          "period": "2026-11-15",
+          "start": 35000,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-16",
+          "start": 35000,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-17",
+          "start": 35000,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-18",
+          "start": 35000,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-19",
+          "start": 35000,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11-20",
+          "start": 35000,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 0,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "mrrByMonth": {
+    "as_of": "2026-11-21T01:35:16.644Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "from": "2026-09-11",
+      "to": "2026-11-20",
+      "bucket": "month",
+      "start": 0,
+      "end": 35000,
+      "movements": {
+        "new": 44800,
+        "migrated": 4900,
+        "reactivated": 0,
+        "churned": 14700,
+        "counts": {
+          "new": 8,
+          "migrated": 1,
+          "reactivated": 0,
+          "churned": 3
+        }
+      },
+      "buckets": [
+        {
+          "period": "2026-09",
+          "start": 0,
+          "end": 4900,
+          "movements": {
+            "new": 4900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 1,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-10",
+          "start": 4900,
+          "end": 44800,
+          "movements": {
+            "new": 39900,
+            "migrated": 0,
+            "reactivated": 0,
+            "churned": 0,
+            "counts": {
+              "new": 7,
+              "migrated": 0,
+              "reactivated": 0,
+              "churned": 0
+            }
+          }
+        },
+        {
+          "period": "2026-11",
+          "start": 44800,
+          "end": 35000,
+          "movements": {
+            "new": 0,
+            "migrated": 4900,
+            "reactivated": 0,
+            "churned": 14700,
+            "counts": {
+              "new": 0,
+              "migrated": 1,
+              "reactivated": 0,
+              "churned": 3
+            }
+          }
+        }
+      ]
+    }
+  },
+  "revenueByKind": {
+    "as_of": "2026-11-21T01:35:16.645Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "from": "2026-09-11",
+      "to": "2026-11-20",
+      "groupBy": "kind",
+      "gross": 117640,
+      "payments": 12,
+      "groups": [
+        {
+          "key": "first",
+          "label": "first",
+          "gross": 98040,
+          "payments": 8
+        },
+        {
+          "key": "renewal",
+          "label": "renewal",
+          "gross": 14700,
+          "payments": 3
+        },
+        {
+          "key": "migrated",
+          "label": "migrated",
+          "gross": 4900,
+          "payments": 1
+        }
+      ],
+      "refunds": 4900,
+      "refundCount": 1,
+      "chargebacks": 0,
+      "chargebackCount": 0,
+      "net": 112740
+    }
+  },
+  "revenueByProduct": {
+    "as_of": "2026-11-21T01:35:16.647Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "from": "2026-09-11",
+      "to": "2026-11-20",
+      "groupBy": "product",
+      "gross": 117640,
+      "payments": 12,
+      "groups": [
+        {
+          "key": "e8f9c107-c704-4259-a728-0245d9cee14c",
+          "label": "Acceso grupo Delta",
+          "gross": 117640,
+          "payments": 12
+        }
+      ],
+      "refunds": 4900,
+      "refundCount": 1,
+      "chargebacks": 0,
+      "chargebackCount": 0,
+      "net": 112740
+    }
+  },
+  "churn": {
+    "as_of": "2026-11-21T01:35:16.652Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "month": "2026-11",
+      "activeOnDay1": 8,
+      "mrrOnDay1": 44800,
+      "churned": {
+        "voluntary": 1,
+        "involuntary": 1,
+        "revoked": 1,
+        "total": 3
+      },
+      "subscriberChurnRate": 0.375,
+      "churnRateByType": {
+        "voluntary": 0.125,
+        "involuntary": 0.125,
+        "revoked": 0.125
+      },
+      "mrrChurned": 14700,
+      "mrrChurnRate": 0.3281,
+      "ended": {
+        "voluntary": 1,
+        "involuntary": 1,
+        "revoked": 1,
+        "neverPaid": 0,
+        "total": 3
+      },
+      "reactivations": 0,
+      "reactivatedMrr": 0,
+      "cancelRequests": 1,
+      "cancelReversals": 0,
+      "renewalByVariant": [
+        {
+          "priceId": "b6c16551-a37a-44fa-b70e-c1d8f57b5fb7",
+          "serviceId": "e8f9c107-c704-4259-a728-0245d9cee14c",
+          "serviceName": "Acceso grupo Delta",
+          "nickname": "Mensual",
+          "interval": "month",
+          "intervalCount": 1,
+          "due": 5,
+          "renewed": 2,
+          "notRenewed": 2,
+          "pending": 1,
+          "renewalRate": 0.5
+        }
+      ]
+    }
+  },
+  "failedPayments": {
+    "as_of": "2026-11-21T01:35:16.659Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "month": "2026-11",
+      "failed": 3,
+      "recoveredInGrace": 1,
+      "recoveredAfterGrace": 0,
+      "lost": 1,
+      "open": 1,
+      "recoveryRate": 0.5,
+      "inGraceRecoveryRate": 0.5,
+      "failedAmount": 14700,
+      "recoveredAmount": 4900,
+      "lostAmount": 4900,
+      "openAmount": 4900,
+      "recoveredMrr": 4900,
+      "lostMrr": 4900,
+      "atStakeMrr": 4900,
+      "medianDaysToRecover": 1,
+      "actionRequired": 0,
+      "byFailureCode": [
+        {
+          "code": "expired_card",
+          "failed": 1,
+          "recovered": 1,
+          "lost": 0,
+          "open": 0
+        },
+        {
+          "code": "generic_decline",
+          "failed": 1,
+          "recovered": 0,
+          "lost": 1,
+          "open": 0
+        },
+        {
+          "code": "insufficient_funds",
+          "failed": 1,
+          "recovered": 0,
+          "lost": 0,
+          "open": 1
+        }
+      ]
+    }
+  },
+  "failedPaymentsOpen": {
+    "as_of": "2026-11-21T01:35:16.666Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "count": 1,
+      "open": [
+        {
+          "provider": "stripe",
+          "invoiceId": "in_w6",
+          "subscriptionId": "7ffb85d7-7faf-4264-889a-ea9a10e8a6bf",
+          "customerId": "496d942c-40ca-42f8-8f51-f9c43ffa4b27",
+          "priceId": "b6c16551-a37a-44fa-b70e-c1d8f57b5fb7",
+          "amount": 4900,
+          "mrr": 4900,
+          "firstFailedAt": "2026-11-19T01:35:15.000Z",
+          "attempts": 1,
+          "failureCode": "insufficient_funds",
+          "failureMessage": "Your card has insufficient funds.",
+          "nextRetryAt": "2026-11-22T01:35:15.000Z",
+          "source": "payment_failed",
+          "outcome": "open",
+          "recoveredAt": null,
+          "customer": {
+            "id": "496d942c-40ca-42f8-8f51-f9c43ffa4b27",
+            "discordId": null,
+            "username": "miembro2",
+            "email": "member2@example.com"
+          },
+          "serviceName": "Acceso grupo Delta",
+          "nickname": "Mensual",
+          "subscriptionStatus": "past_due",
+          "access": "grace",
+          "graceEndsAt": "2026-11-22T01:35:15.000Z",
+          "paidThrough": "2026-11-19T01:35:15.000Z"
+        }
+      ]
+    }
+  },
+  "signupsBySource": {
+    "as_of": "2026-11-21T01:35:16.673Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "from": "2026-09-11",
+      "to": "2026-11-20",
+      "groupBy": "source",
+      "signups": 8,
+      "groups": [
+        {
+          "key": "youtube",
+          "signups": 3,
+          "subscriptions": 3,
+          "oneTime": 0
+        },
+        {
+          "key": "instagram",
+          "signups": 2,
+          "subscriptions": 2,
+          "oneTime": 0
+        },
+        {
+          "key": "direct",
+          "signups": 1,
+          "subscriptions": 1,
+          "oneTime": 0
+        },
+        {
+          "key": "google.com",
+          "signups": 1,
+          "subscriptions": 1,
+          "oneTime": 0
+        },
+        {
+          "key": "newsletter",
+          "signups": 1,
+          "subscriptions": 1,
+          "oneTime": 0
+        }
+      ],
+      "accounts": {
+        "created": 10,
+        "paid": 8,
+        "conversionRate": 0.8,
+        "groups": [
+          {
+            "key": "youtube",
+            "created": 3,
+            "paid": 3,
+            "conversionRate": 1
+          },
+          {
+            "key": "(no order)",
+            "created": 2,
+            "paid": 0,
+            "conversionRate": 0
+          },
+          {
+            "key": "instagram",
+            "created": 2,
+            "paid": 2,
+            "conversionRate": 1
+          },
+          {
+            "key": "direct",
+            "created": 1,
+            "paid": 1,
+            "conversionRate": 1
+          },
+          {
+            "key": "google.com",
+            "created": 1,
+            "paid": 1,
+            "conversionRate": 1
+          },
+          {
+            "key": "newsletter",
+            "created": 1,
+            "paid": 1,
+            "conversionRate": 1
+          }
+        ]
+      }
+    }
+  },
+  "signupsByCampaign": {
+    "as_of": "2026-11-21T01:35:16.674Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "from": "2026-09-11",
+      "to": "2026-11-20",
+      "groupBy": "campaign",
+      "signups": 8,
+      "groups": [
+        {
+          "key": "(none)",
+          "signups": 3,
+          "subscriptions": 3,
+          "oneTime": 0
+        },
+        {
+          "key": "black-friday",
+          "signups": 2,
+          "subscriptions": 2,
+          "oneTime": 0
+        },
+        {
+          "key": "retarget",
+          "signups": 2,
+          "subscriptions": 2,
+          "oneTime": 0
+        },
+        {
+          "key": "lanzamiento",
+          "signups": 1,
+          "subscriptions": 1,
+          "oneTime": 0
+        }
+      ],
+      "accounts": {
+        "created": 10,
+        "paid": 8,
+        "conversionRate": 0.8,
+        "groups": [
+          {
+            "key": "(none)",
+            "created": 3,
+            "paid": 3,
+            "conversionRate": 1
+          },
+          {
+            "key": "(no order)",
+            "created": 2,
+            "paid": 0,
+            "conversionRate": 0
+          },
+          {
+            "key": "black-friday",
+            "created": 2,
+            "paid": 2,
+            "conversionRate": 1
+          },
+          {
+            "key": "retarget",
+            "created": 2,
+            "paid": 2,
+            "conversionRate": 1
+          },
+          {
+            "key": "lanzamiento",
+            "created": 1,
+            "paid": 1,
+            "conversionRate": 1
+          }
+        ]
+      }
+    }
+  },
+  "reconciliation": {
+    "as_of": "2026-11-21T01:35:16.685Z",
+    "source": "live",
+    "definition_version": 1,
+    "data": {
+      "runs": [
+        {
+          "id": "d8131906-fd42-42f5-80ee-767cac655a0c",
+          "runAt": "2026-11-21T00:35:15.592Z",
+          "scope": "failed_invoices",
+          "day": null,
+          "status": "ok",
+          "checked": 1,
+          "ignored": 9,
+          "mismatches": [],
+          "createdAt": "2026-11-21T01:35:16.631Z"
+        },
+        {
+          "id": "23caf78c-b240-4287-bbc8-89c3eb279897",
+          "runAt": "2026-11-21T00:35:15.592Z",
+          "scope": "revenue",
+          "day": "2026-11-20",
+          "status": "mismatch",
+          "checked": 3,
+          "ignored": 41,
+          "mismatches": [
+            {
+              "id": "in_1Example",
+              "kind": "payment_missing",
+              "ours": null,
+              "theirs": 4900
+            }
+          ],
+          "createdAt": "2026-11-21T01:35:16.631Z"
+        },
+        {
+          "id": "a72db28c-c39a-4586-8000-00db2a186546",
+          "runAt": "2026-11-21T00:35:15.592Z",
+          "scope": "mrr",
+          "day": null,
+          "status": "ok",
+          "checked": 6,
+          "ignored": 212,
+          "mismatches": [],
+          "createdAt": "2026-11-21T01:35:16.631Z"
+        },
+        {
+          "id": "1465461a-608e-4054-b65f-87fa30292707",
+          "runAt": "2026-11-21T00:35:15.592Z",
+          "scope": "subscriptions",
+          "day": null,
+          "status": "ok",
+          "checked": 7,
+          "ignored": 212,
+          "mismatches": [],
+          "createdAt": "2026-11-21T01:35:16.631Z"
+        },
+        {
+          "id": "7ea5241d-c777-4c17-b44b-16405243b733",
+          "runAt": "2026-11-20T22:35:15.592Z",
+          "scope": "repair",
+          "day": null,
+          "status": "ok",
+          "checked": 7,
+          "ignored": 212,
+          "mismatches": [
+            {
+              "id": "sub_1Example",
+              "kind": "paid_through",
+              "ours": "2026-10-21T01:35:15.592Z",
+              "theirs": "2026-11-20T01:35:15.592Z",
+              "repaired": true
+            }
+          ],
+          "createdAt": "2026-11-21T01:35:16.631Z"
+        }
+      ],
+      "mismatched": 1
+    }
+  },
+  "exportMrr": "period,start,new,migrated,reactivated,churned,end\r\n2026-09,0,4900,0,0,0,4900\r\n2026-10,4900,39900,0,0,0,44800\r\n2026-11,44800,0,4900,0,14700,35000\r\n"
+}

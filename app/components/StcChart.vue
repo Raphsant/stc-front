@@ -4,8 +4,11 @@ interface DataPoint { label: string; value: number }
 const props = withDefaults(defineProps<{
   data: DataPoint[]
   height?: number
+  /** What a value counts, shown after it in the hover readout. */
+  unit?: string
 }>(), {
   height: 320,
+  unit: 'registros',
 })
 
 const svgEl  = ref<SVGSVGElement | null>(null)
@@ -157,7 +160,7 @@ function onMouseMove(e: PointerEvent) {
     dot.setAttribute('opacity', '1')
   }
 
-  readout.value   = best.value.toLocaleString('es') + ' registros'
+  readout.value   = best.value.toLocaleString('es') + ' ' + props.unit
   readout.label   = best.label
   // mantener la lectura dentro del gráfico (≈ media anchura del globo)
   const rx = (best.x / vb.width) * rect.width

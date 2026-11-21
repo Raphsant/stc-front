@@ -32,6 +32,11 @@ export function formatRate(rate: number | null | undefined): string {
     return `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(rate * 100)} %`
 }
 
+/** "1 suscripción", "3 suscripciones", and "—" for a count that is not there. */
+export function countOf(n: number | null | undefined, one: string, many: string): string {
+    return n == null ? '—' : `${formatCount(n)} ${n === 1 ? one : many}`
+}
+
 export function formatCount(n: number | null | undefined): string {
     return n == null ? '—' : new Intl.NumberFormat('es-ES').format(n)
 }

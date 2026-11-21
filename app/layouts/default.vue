@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { roleLabel } from '#shared/permissions'
+
 const isMoreOpen = ref(false)
 const route = useRoute()
 const { session } = useUserSession()
@@ -11,12 +13,14 @@ async function logout() {
 }
 
 const isSuperAdmin = computed(() => (session.value?.user as any)?.role === 'superadmin')
+const roleName = computed(() => roleLabel((session.value?.user as any)?.role))
 
 const navItems = computed(() => [
   { label: 'Dashboard',  icon: 'i-lucide-layout-dashboard', to: '/' },
   { label: 'Usuarios',   icon: 'i-lucide-users',            to: '/discord-users' },
   { label: 'Reportes',   icon: 'i-lucide-file-bar-chart',   to: '/reports' },
   { label: 'Meetings',   icon: 'i-lucide-list',             to: '/meetings' },
+  { label: 'Métricas',   icon: 'i-lucide-trending-up',      to: '/billing/metrics' },
   { label: 'Suscripciones', icon: 'i-lucide-repeat',        to: '/billing/subscriptions' },
   { label: 'Órdenes',    icon: 'i-lucide-receipt',          to: '/billing/orders' },
   { label: 'Productos',  icon: 'i-lucide-package',          to: '/billing/products' },
@@ -109,7 +113,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               {{ (session?.user as any)?.username }}
             </div>
             <div class="text-[11px] truncate" style="color:var(--faint)">
-              {{ isSuperAdmin ? 'Superadmin' : 'Admin' }}
+              {{ roleName }}
             </div>
           </div>
           <button class="stc-ibtn" title="Cerrar sesión" @click="logout">
@@ -238,7 +242,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               {{ (session?.user as any)?.username }}
             </div>
             <div class="text-[11px]" style="color:var(--faint)">
-              {{ isSuperAdmin ? 'Superadmin' : 'Admin' }} · v{{ appVersion }}
+              {{ roleName }} · v{{ appVersion }}
             </div>
           </div>
           <button class="stc-ibtn" title="Cerrar sesión" @click="logout">

@@ -4,6 +4,7 @@ import {
     addMonthsTo,
     asOfLabel,
     chicagoDay,
+    countOf,
     failureCodeLabel,
     formatRate,
     formatUsd,
@@ -37,6 +38,13 @@ describe('money and rates', () => {
         expect(plain(formatUsdSigned(-4900))).toBe('−49,00 US$')
         expect(plain(formatUsdSigned(0))).toBe('0,00 US$')
         expect(formatUsdSigned(null)).toBe('—')
+    })
+
+    it('counts in the singular and the plural', () => {
+        expect(countOf(1, 'suscripción', 'suscripciones')).toBe('1 suscripción')
+        expect(countOf(0, 'suscripción', 'suscripciones')).toBe('0 suscripciones')
+        expect(plain(countOf(1234, 'pago', 'pagos'))).toBe('1234 pagos')
+        expect(countOf(null, 'pago', 'pagos')).toBe('—')
     })
 
     it('formats a rate as a percentage and no rate as a dash', () => {

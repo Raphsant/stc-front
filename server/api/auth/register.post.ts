@@ -1,30 +1,26 @@
-import bcrypt from 'bcryptjs'
+// Creates a staff account. With no accounts at all (first run) anyone may create
+// the first one, and it is a superadmin so someone can manage the rest. After that
+// only a superadmin may, with the role they choose (admin when none is given).
+//
+// This route is public in server/middleware/auth.ts so the first run can reach it;
+// the checks below are the only ones it gets.
 
 export default defineEventHandler(async (event) => {
-    const body = await readBody(event)
-    const { username, password } = body
+    const body = (await readBody(event)) ?? {}
 
-    if (!username || !password) {
-        throw createError({ status: 400, statusText: 'Username and password are required' })
-    }
-    if (password.length < 8) {
-        throw createError({ status: 400, statusText: 'Password must be at least 8 characters' })
+    const firstRun = (await User.countDocuments()) === 0
+    if (firstRun) {
+        const account = await createStaffAccount({ username: body.username, password: body.password }, 'superadmin')
+        return { id: account.id, username: account.username, role: account.role }
     }
 
-    // Allow unauthenticated registration only when the DB has zero users (first run).
-    // After that, only a logged-in admin can create more accounts.
-    const userCount = await User.countDocuments()
-    if (userCount > 0) {
-        await requireUserSession(event)
+    await requireUserSession(event)
+    // the role as stored now, not as it was at login
+    const me = await syncStaffSession(event)
+    if (!isSuperAdmin(me)) {
+        throw createError({ statusCode: 403, statusMessage: 'Solo un superadmin puede crear cuentas' })
     }
 
-    const existing = await User.findOne({ username: username.toLowerCase() })
-    if (existing) {
-        throw createError({ status: 409, statusText: 'Username already taken' })
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12)
-    const user = await User.create({ username: username.toLowerCase(), passwordHash })
-
-    return { id: user._id, username: user.username }
+    const account = await createStaffAccount(body)
+    return { id: account.id, username: account.username, role: account.role }
 })

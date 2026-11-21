@@ -1,9 +1,10 @@
-import {requireUserSession} from "#imports";
 
 const PUBLIC_ROUTES = [
     '/api/auth/login',
     '/api/auth/logout',
     '/api/auth/me',
+    // Checks for itself: open only while there are no accounts, superadmin-only after.
+    '/api/auth/register',
     '/api/discord-users/mass-create'
 ]
 
@@ -19,5 +20,6 @@ export default defineEventHandler(async (event) => {
 
     await requireUserSession(event)
 
-
+    // The role in the session may be stale (changed on /staff since login).
+    await syncStaffSession(event)
 })

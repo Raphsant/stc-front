@@ -28,7 +28,10 @@ const navItems = computed(() => [
   { label: 'Logs',       icon: 'i-lucide-file-text',        to: '/logs' },
   { label: 'Bot Status', icon: 'i-lucide-radio',            to: '/status' },
   { label: 'Changelog',  icon: 'i-lucide-scroll-text',      to: '/changelog' },
-  ...(isSuperAdmin.value ? [{ label: 'Eliminaciones', icon: 'i-lucide-flag', to: '/journal/pending-deletions' }] : []),
+  ...(isSuperAdmin.value ? [
+    { label: 'Eliminaciones', icon: 'i-lucide-flag', to: '/journal/pending-deletions' },
+    { label: 'Cuentas', icon: 'i-lucide-user-cog', to: '/staff' },
+  ] : []),
 ])
 
 function isActive(to: string) {
